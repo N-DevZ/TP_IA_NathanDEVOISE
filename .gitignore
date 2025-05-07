@@ -4,6 +4,9 @@
 /node_modules
 /.pnp
 .pnp.js
+# Ignorer les dossiers build et dist
+/build/
+/dist/
 
 # testing
 /coverage
