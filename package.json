@@ -1,12 +1,17 @@
 {
-  "name": "sip-softphone",
+  "name": "milosip",
+  "description": "Softphone SIP avec React + Electron",
+  "author": "Nathan",
+  "main": "public/electron.js",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "dependencies": {
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^13.5.0",
+    "electron-is-dev": "^3.0.1",
     "jssip": "^3.10.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
@@ -14,10 +19,28 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "start": "concurrently \"cross-env BROWSER=none HOST=0.0.0.0 HTTPS=true SSL_CRT_FILE=./cert.pem SSL_KEY_FILE=./key.pem react-scripts start\" \"wait-on https://localhost:3000 && cross-env ELECTRON_START_URL=https://localhost:3000 electron . --ignore-certificate-errors\"",
+    "build-react": "react-scripts build",
+    "electron": "electron .",
+    "dist": "npm run build-react && electron-builder",
+    "serve": "http-server build -p 3000 --cors --ssl --cert ./cert.pem --key ./key.pem --host 0.0.0.0"
+  },
+  "build": {
+    "appId": "com.tonapp.nom",
+    "productName": "MonApp",
+    "files": [
+      "build/**/*",
+      "public/electron.js"
+    ],
+    "directories": {
+      "buildResources": "assets"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg"
+    }
   },
   "eslintConfig": {
     "extends": [
@@ -36,5 +59,12 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
+    "electron": "^36.1.0",
+    "electron-builder": "^26.0.12",
+    "wait-on": "^8.0.3"
   }
 }

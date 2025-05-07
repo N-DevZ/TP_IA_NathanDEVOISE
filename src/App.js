@@ -27,7 +27,7 @@ function App({ username, password, callTo }) {
       });
 
     // SIP configuration
-    const socket = new JsSIP.WebSocketInterface('ws://192.168.1.28:5066');
+    const socket = new JsSIP.WebSocketInterface('ws://192.168.1.28:5066/MiloSIP');
     const configuration = {
       sockets: [socket],
       uri: `sip:${username}@192.168.1.28:5080`,
@@ -47,58 +47,70 @@ function App({ username, password, callTo }) {
 
     ua.on('newRTCSession', (data) => {
       const newSession = data.session;
-
+    
       if (newSession.direction === 'incoming') {
         setIncomingCall(newSession);
         setCallStatus('Incoming call');
+      } else {
+        setSession(newSession);
+        setCallStatus('Outgoing call');
       }
-
+    
       newSession.on('accepted', () => {
         console.log('Call accepted');
         setCallStatus('Call in progress');
       });
+    
       newSession.on('confirmed', () => {
         console.log('Call confirmed');
       });
+    
       newSession.on('ended', () => {
         console.log('Call ended');
         setCallStatus('Call ended');
         setSession(null);
         setIncomingCall(null);
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = null;
+        }
       });
+    
       newSession.on('failed', (e) => {
         console.error('Call failed:', e);
         setCallStatus(`Call failed: ${e.cause}`);
         setSession(null);
         setIncomingCall(null);
-      });
-
-      newSession.connection.addEventListener('track', (event) => {
-        const [remoteStream] = event.streams;
         if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = remoteStream;
+          remoteVideoRef.current.srcObject = null;
         }
-        event.streams[0].getTracks().forEach(track => {
-          console.log(`Remote track added: ${track.kind}`);
-          track.onended = () => console.log(`Remote ${track.kind} track ended`);
-          track.onmute = () => console.log(`Remote ${track.kind} track muted`);
-          track.onunmute = () => console.log(`Remote ${track.kind} track unmuted`);
-        });
       });
-
-      newSession.on('iceconnectionstatechange', () => {
-        console.log('ICE connection state:', newSession.connection.iceConnectionState);
-      });
-
+    
       newSession.on('peerconnection', (e) => {
         console.log('Peer connection event:', e.type);
-        e.peerconnection.onicecandidate = (event) => {
+        const peerconnection = e.peerconnection;
+    
+        peerconnection.ontrack = (event) => {
+          console.log('Remote track added');
+          const [remoteStream] = event.streams;
+          if (remoteVideoRef.current) {
+            remoteVideoRef.current.srcObject = remoteStream;
+          }
+          event.streams[0].getTracks().forEach(track => {
+            console.log(`Remote track added: ${track.kind}`);
+            track.onended = () => console.log(`Remote ${track.kind} track ended`);
+            track.onmute = () => console.log(`Remote ${track.kind} track muted`);
+            track.onunmute = () => console.log(`Remote ${track.kind} track unmuted`);
+          });
+        };
+    
+        peerconnection.onicecandidate = (event) => {
           if (event.candidate) {
             console.log('ICE candidate:', event.candidate);
           }
         };
-        e.peerconnection.oniceconnectionstatechange = () => {
-          console.log('ICE connection state:', e.peerconnection.iceConnectionState);
+    
+        peerconnection.oniceconnectionstatechange = () => {
+          console.log('ICE connection state:', peerconnection.iceConnectionState);
         };
       });
     });
@@ -113,46 +125,12 @@ function App({ username, password, callTo }) {
 
   const handleCall = async () => {
     if (!userAgent) return;
-
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-    localVideoRef.current.srcObject = stream;
-
-    const options = {
-      mediaStream: stream, // 👈 IMPORTANT : donner le flux ici
-      mediaConstraints: { audio: true, video: true },
-      pcConfig: {
-        iceServers: [
-          { urls: ['stun:stun.freeswitch.org'] },
-        ],
-        iceTransportPolicy: 'all',
-      },
-      rtcOfferConstraints: {
-        offerToReceiveAudio: 1,
-        offerToReceiveVideo: 1
-      },
-      sessionTimersExpires: 600
-    };
-
-    console.log('Initiating call to:', `sip:${callTo}@192.168.1.28:5080`);
-    const newSession = userAgent.call(`sip:${callTo}@192.168.1.28:5080`, options);
-    setSession(newSession);
-    setCallStatus('Calling...');
-
+  
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-      console.log('Local media stream obtained');
       localVideoRef.current.srcObject = stream;
-    } catch (error) {
-      console.error('Error accessing media devices:', error);
-    }
-  };
-
-  const handleAnswer = async () => {
-    if (incomingCall) {
-      console.log('Answering incoming call');
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-      localVideoRef.current.srcObject = stream;
-      incomingCall.answer({
+  
+      const options = {
         mediaStream: stream,
         mediaConstraints: { audio: true, video: true },
         pcConfig: {
@@ -161,17 +139,69 @@ function App({ username, password, callTo }) {
           ],
           iceTransportPolicy: 'all',
         },
-        rtcAnswerConstraints: {
+        rtcOfferConstraints: {
           offerToReceiveAudio: 1,
           offerToReceiveVideo: 1
         },
         sessionTimersExpires: 600
+      };
+  
+      console.log('Initiating call to:', `sip:${callTo}@192.168.1.28:5080`);
+      const newSession = userAgent.call(`sip:${callTo}@192.168.1.28:5080`, options);
+      setSession(newSession);
+      setCallStatus('Calling...');
+  
+      newSession.on('accepted', () => {
+        console.log('Call accepted by remote party');
+        setCallStatus('Call in progress');
       });
-      setSession(incomingCall);
-      setIncomingCall(null);
+  
+      newSession.on('confirmed', () => {
+        console.log('Call confirmed');
+      });
+  
+      newSession.connection.ontrack = (event) => {
+        console.log('Remote track received in outgoing call');
+        const [remoteStream] = event.streams;
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = remoteStream;
+        }
+      };
+  
+    } catch (error) {
+      console.error('Error accessing media devices:', error);
     }
   };
 
+  const handleAnswer = async () => {
+    if (incomingCall) {
+      console.log('Answering incoming call');
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        localVideoRef.current.srcObject = stream;
+  
+        incomingCall.answer({
+          mediaStream: stream,
+          mediaConstraints: { audio: true, video: true },
+          pcConfig: {
+            iceServers: [
+              { urls: ['stun:stun.freeswitch.org'] },
+            ],
+            iceTransportPolicy: 'all',
+          },
+          rtcAnswerConstraints: {
+            offerToReceiveAudio: 1,
+            offerToReceiveVideo: 1
+          },
+          sessionTimersExpires: 600
+        });
+        setSession(incomingCall);
+        setIncomingCall(null);
+      } catch (error) {
+        console.error('Error accessing media devices:', error);
+      }
+    }
+  };
   const handleReject = () => {
     if (incomingCall) {
       console.log('Rejecting incoming call');

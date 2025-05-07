@@ -1,0 +1,18 @@
+directories:
+  output: dist
+  buildResources: assets
+files:
+  - filter:
+      - build/**/*
+      - build/**/*
+      - public/electron.js
+extraMetadata:
+  main: build/electron.js
+appId: com.tonapp.nom
+productName: MonApp
+win:
+  target: nsis
+mac:
+  target: dmg
+extends: react-cra
+electronVersion: 36.1.0
