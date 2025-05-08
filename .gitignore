@@ -5,8 +5,8 @@
 /.pnp
 .pnp.js
 # Ignorer les dossiers build et dist
-/build/
-/dist/
+
+/dist
 
 # testing
 /coverage
