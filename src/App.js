@@ -1,53 +1,169 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import JsSIP from 'jssip';
-
+import LoginPage from './LoginPage';
+import Settings from './Settings';
+import Profile from './Profile';
+import CustomTitleBar from './CustomTitleBar';
+import './App.css';
+import moment from 'moment-timezone';
+import CallHistory from './CallHistory'; // Nous allons créer ce composant
+import SideMenu from './SideMenu';
+import defaultPhoto from './assets/pdp.png';
+import './LoadingSpinner.css';
+import LoadingSpinner from './LoadingSpinner';
+// Activation du débogage JsSIP
 JsSIP.debug.enable('JsSIP:*');
 
-function App({ username, password, callTo }) {
+// Initialisation de ipcRenderer pour Electron (si disponible)
+let ipcRenderer;
+if (window.require) {
+  const electron = window.require('electron');
+  ipcRenderer = electron.ipcRenderer;
+}
+
+function App() {
+  // États pour gérer l'application
   const [userAgent, setUserAgent] = useState(null);
+  const [callHistory, setCallHistory] = useState([]);
+  const [currentPage, setCurrentPage] = useState('home');
+  const [isLoading, setIsLoading] = useState(false);
+const [isAudioEnabled, setIsAudioEnabled] = useState(true);
+
   const [registrationStatus, setRegistrationStatus] = useState('');
   const [callStatus, setCallStatus] = useState('');
   const [session, setSession] = useState(null);
   const [incomingCall, setIncomingCall] = useState(null);
-  const localVideoRef = useRef(null);
-  const remoteVideoRef = useRef(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [connectionFailed, setConnectionFailed] = useState(false);
+  const [username, setUsername] = useState('');
+  const [callTo, setCallTo] = useState('');
+  const [isVideoEnabled, setIsVideoEnabled] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [theme, setTheme] = useState('light');
+  const [language, setLanguage] = useState('en');
+  const [token, setToken] = useState(null);
+  const [profile, setProfile] = useState({
+    name: '',
+    email: '',
+    bio: '',
+    color: '#000000',
+    photo: null,
+  });
 
-  useEffect(() => {
-    // Check media permissions
-    navigator.mediaDevices.getUserMedia({ audio: true, video: true })
-      .then(stream => {
-        console.log('Permissions granted for audio and video');
-        // Optionally, you can set the local video stream here
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = stream;
-        }
-      })
-      .catch(error => {
-        console.error('Error accessing media devices:', error);
+
+  const generateToken = useCallback(async () => {
+    try {
+      const response = await fetch('http://192.168.1.201:3000/auth/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          client_id: 'my_client_id',
+          client_secret: 'my_client_secret',
+        }),
+        credentials: 'include', // Ajout de cette ligne
+        mode: 'cors'
+
       });
 
-    // SIP configuration
-    const socket = new JsSIP.WebSocketInterface('ws://192.168.1.28:5066/MiloSIP');
+      if (!response.ok) {
+        throw new Error('Failed to generate token');
+      }
+
+      const data = await response.json();
+      setToken(data.access_token);
+      console.log('Token generated successfully', data.access_token);
+    } catch (error) {
+      console.error('Error generating token:', error);
+    }
+  }, []);
+
+  // Générer le token au lancement de l'application
+  useEffect(() => {
+    generateToken();
+  }, [generateToken]);
+  // Références pour les éléments vidéo
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
+  useEffect(() => {
+    const token = localStorage.getItem('sessionToken');
+    if (token) {
+      // Vérifiez la validité du token ici
+
+      setIsLoggedIn(true);
+    }
+  }, []);
+  // Fonction de connexion
+  const handleLogin = useCallback((extension, password) => {
+    setUsername(extension);
+
+    // Configuration SIP
+    const socket = new JsSIP.WebSocketInterface('ws://192.168.1.201:5066');
     const configuration = {
       sockets: [socket],
-      uri: `sip:${username}@192.168.1.28:5080`,
+      uri: `sip:${extension}@192.168.1.201:5070`,
       password: password,
       sessionTimersExpires: 600,
       register: true,
-      registrar_server: 'sip:192.168.1.28:5080'
+      registrar_server: 'sip:192.168.1.201',
+      pcConfig: {
+        iceServers: [
+          { urls: ['stun:stun.freeswitch.org'] },
+        ],
+        iceTransportPolicy: 'all',
+        iceCandidatePoolSize: 0,
+        bundlePolicy: 'max-bundle',
+        rtcpMuxPolicy: 'require'
+      },
+      rtcpMuxPolicy: 'require',
+      hackStripTcp: true,
+      hackStripSsrc: true,
+      iceCheckingTimeout: 5000 // Ajoute un timeout de 5 secondes pour la collecte des candidats ICE
     };
 
     const ua = new JsSIP.UA(configuration);
+    setInterval(() => {
+  if (ua.isRegistered()) {
+    ua.sendOptions(`sip:${extension}@192.168.1.201:5070`);
+  }
+}, 30000);
+    // Gestion des événements de l'agent utilisateur
+    ua.on('connected', () => {
+      console.log(`${extension} connected to FreeSWITCH server`);
+      setConnectionFailed(false);
+    });
+    ua.on('disconnected', () => {
+      setRegistrationStatus('Disconnected');
+      setConnectionFailed(true);
+      console.log('Disconnected. Attempting to reconnect...');
+      setTimeout(() => ua.register(), 5000); // Tente de se reconnecter après 5 secondes
+    });
+    ua.on('registered', () => {
+      setRegistrationStatus('Registered');
+      setIsLoggedIn(true);
+      setConnectionFailed(false);
+    });
+    ua.on('unregistered', () => {
+      setRegistrationStatus('Unregistered');
+      setConnectionFailed(true);
+    });
+    ua.on('registrationFailed', (e) => {
+      setRegistrationStatus(`Registration failed: ${e.cause}`);
+      setConnectionFailed(true);
+      console.error(`Login failed: ${e.cause}`);
+      if (e.cause === 'Connection Error') {
+        console.log('Connection error. Attempting to reconnect...');
+        setTimeout(() => ua.register(), 5000); // Tente de se reconnecter après 5 secondes
+      }
+    });
 
-    ua.on('connected', () => console.log(`${username} connected to FreeSWITCH server`));
-    ua.on('disconnected', () => setRegistrationStatus('Disconnected'));
-    ua.on('registered', () => setRegistrationStatus('Registered'));
-    ua.on('unregistered', () => setRegistrationStatus('Unregistered'));
-    ua.on('registrationFailed', (e) => setRegistrationStatus(`Registration failed: ${e.cause}`));
-
+    // Gestion des nouvelles sessions RTC
+    // Fonction de gestion de la nouvelle session RTC
     ua.on('newRTCSession', (data) => {
       const newSession = data.session;
-    
+
       if (newSession.direction === 'incoming') {
         setIncomingCall(newSession);
         setCallStatus('Incoming call');
@@ -55,84 +171,131 @@ function App({ username, password, callTo }) {
         setSession(newSession);
         setCallStatus('Outgoing call');
       }
-    
+
       newSession.on('accepted', () => {
         console.log('Call accepted');
         setCallStatus('Call in progress');
       });
-    
+
       newSession.on('confirmed', () => {
         console.log('Call confirmed');
       });
-    
+
       newSession.on('ended', () => {
         console.log('Call ended');
         setCallStatus('Call ended');
         setSession(null);
         setIncomingCall(null);
+        setIsVideoEnabled(false);
         if (remoteVideoRef.current) {
           remoteVideoRef.current.srcObject = null;
         }
       });
-    
+
       newSession.on('failed', (e) => {
         console.error('Call failed:', e);
         setCallStatus(`Call failed: ${e.cause}`);
         setSession(null);
         setIncomingCall(null);
+        setIsVideoEnabled(false);
         if (remoteVideoRef.current) {
           remoteVideoRef.current.srcObject = null;
         }
       });
-    
+
       newSession.on('peerconnection', (e) => {
         console.log('Peer connection event:', e.type);
         const peerconnection = e.peerconnection;
-    
+
+        // Ajout de l'événement 'icecandidate'
+        peerconnection.addEventListener('icecandidate', (event) => {
+          const candidate = event.candidate;
+
+          if (!candidate) {
+            // Si aucun candidat n'est trouvé, force l'envoi du SDP après 2000ms
+            console.log('No more ICE candidates, forcing SDP emit after timeout');
+            setTimeout(() => {
+              if (newSession.iceGatheringState !== 'complete') {
+                console.log('ICE Gathering timeout reached');
+                // Force l'envoi du SDP
+                const e = { originator: 'local', type: 'offer', sdp: newSession.localDescription.sdp };
+                newSession.emit('sdp', e);
+                setCallStatus('Call in progress');
+              }
+            }, 2000); // Timeout à 2 secondes
+          }
+        });
+
         peerconnection.ontrack = (event) => {
           console.log('Remote track added');
           const [remoteStream] = event.streams;
           if (remoteVideoRef.current) {
             remoteVideoRef.current.srcObject = remoteStream;
           }
-          event.streams[0].getTracks().forEach(track => {
-            console.log(`Remote track added: ${track.kind}`);
-            track.onended = () => console.log(`Remote ${track.kind} track ended`);
-            track.onmute = () => console.log(`Remote ${track.kind} track muted`);
-            track.onunmute = () => console.log(`Remote ${track.kind} track unmuted`);
-          });
-        };
-    
-        peerconnection.onicecandidate = (event) => {
-          if (event.candidate) {
-            console.log('ICE candidate:', event.candidate);
-          }
-        };
-    
-        peerconnection.oniceconnectionstatechange = () => {
-          console.log('ICE connection state:', peerconnection.iceConnectionState);
         };
       });
     });
 
+
     setUserAgent(ua);
     ua.start();
+  }, []);
 
+  const attemptReconnection = useCallback(() => {
+    if (userAgent && !userAgent.isRegistered()) {
+      console.log('Attempting to reconnect...');
+      userAgent.register();
+    }
+  }, [userAgent]);
+
+  useEffect(() => {
+    if (userAgent) {
+      const reconnectionInterval = setInterval(attemptReconnection, 60000); // Tente de se reconnecter toutes les minutes
+      return () => clearInterval(reconnectionInterval);
+    }
+  }, [userAgent, attemptReconnection]);
+  useEffect(() => {
+    if (userAgent) {
+      const checkConnection = () => {
+        if (userAgent.isConnected()) {
+          setConnectionFailed(false);
+        } else {
+          setConnectionFailed(true);
+        }
+      };
+
+      // Vérifiez la connexion toutes les 5 secondes
+      const intervalId = setInterval(checkConnection, 5000);
+
+      // Nettoyage
+      return () => clearInterval(intervalId);
+    }
+  }, [userAgent]);
+  // Nettoyage de l'agent utilisateur lors du démontage du composant
+  useEffect(() => {
     return () => {
-      ua.stop();
+      if (userAgent) {
+        userAgent.stop();
+      }
     };
-  }, [username, password]);
+  }, [userAgent]);
 
-  const handleCall = async () => {
-    if (!userAgent) return;
-  
+  // Fonction pour initier un appel
+  const handleCall = useCallback(async (withVideo = false) => {
+    if (!userAgent || !callTo) return;
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-      localVideoRef.current.srcObject = stream;
-  
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: withVideo
+      });
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
+
       const options = {
         mediaStream: stream,
-        mediaConstraints: { audio: true, video: true },
+        mediaConstraints: { audio: true, video: withVideo },
         pcConfig: {
           iceServers: [
             { urls: ['stun:stun.freeswitch.org'] },
@@ -141,25 +304,26 @@ function App({ username, password, callTo }) {
         },
         rtcOfferConstraints: {
           offerToReceiveAudio: 1,
-          offerToReceiveVideo: 1
+          offerToReceiveVideo: withVideo ? 1 : 0
         },
         sessionTimersExpires: 600
       };
-  
-      console.log('Initiating call to:', `sip:${callTo}@192.168.1.28:5080`);
-      const newSession = userAgent.call(`sip:${callTo}@192.168.1.28:5080`, options);
+
+      console.log('Initiating call to:', `sip:${callTo}@192.168.1.201:5070`);
+      const newSession = userAgent.call(`sip:${callTo}@192.168.1.201:5070`, options);
       setSession(newSession);
       setCallStatus('Calling...');
-  
+      setIsVideoEnabled(withVideo);
+
       newSession.on('accepted', () => {
         console.log('Call accepted by remote party');
         setCallStatus('Call in progress');
       });
-  
+
       newSession.on('confirmed', () => {
         console.log('Call confirmed');
       });
-  
+
       newSession.connection.ontrack = (event) => {
         console.log('Remote track received in outgoing call');
         const [remoteStream] = event.streams;
@@ -167,19 +331,45 @@ function App({ username, password, callTo }) {
           remoteVideoRef.current.srcObject = remoteStream;
         }
       };
-  
+
     } catch (error) {
       console.error('Error accessing media devices:', error);
     }
-  };
+  }, [userAgent, callTo]);
+const toggleVideo = useCallback(() => {
+  if (session) {
+    const videoTrack = session.connection.getSenders()
+      .find(sender => sender.track && sender.track.kind === 'video');
+    if (videoTrack) {
+      videoTrack.track.enabled = !videoTrack.track.enabled;
+      setIsVideoEnabled(videoTrack.track.enabled);
+    } else if (!isVideoEnabled) {
+      // Si la vidéo n'est pas encore activée, on l'active
+      handleCall(true);
+    }
+  }
+}, [session, isVideoEnabled, handleCall]);
 
-  const handleAnswer = async () => {
+const toggleAudio = useCallback(() => {
+  if (session) {
+    const audioTrack = session.connection.getSenders()
+      .find(sender => sender.track && sender.track.kind === 'audio');
+    if (audioTrack) {
+      audioTrack.track.enabled = !audioTrack.track.enabled;
+      setIsAudioEnabled(audioTrack.track.enabled);
+    }
+  }
+}, [session]);
+  // Fonction pour répondre à un appel entrant
+  const handleAnswer = useCallback(async () => {
     if (incomingCall) {
       console.log('Answering incoming call');
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-        localVideoRef.current.srcObject = stream;
-  
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = stream;
+        }
+
         incomingCall.answer({
           mediaStream: stream,
           mediaConstraints: { audio: true, video: true },
@@ -197,47 +387,403 @@ function App({ username, password, callTo }) {
         });
         setSession(incomingCall);
         setIncomingCall(null);
+        setIsVideoEnabled(true);
       } catch (error) {
         console.error('Error accessing media devices:', error);
       }
     }
-  };
-  const handleReject = () => {
+  }, [incomingCall]);
+
+  // Fonction pour rejeter un appel entrant
+  const handleReject = useCallback(() => {
     if (incomingCall) {
       console.log('Rejecting incoming call');
       incomingCall.terminate();
       setIncomingCall(null);
     }
-  };
+  }, [incomingCall]);
+  const fetchCallHistory = useCallback(async () => {
+    if (token && username) {
+      try {
+        const response = await fetch(`http://192.168.1.201:3000/cdr/${username}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        if (!response.ok) {
+          throw new Error('Failed to fetch call history');
+        }
+        const data = await response.json();
+        setCallHistory(data);
+      } catch (error) {
+        console.error('Error fetching call history:', error);
+      }
+    }
+  }, [token, username]);
 
-  const handleHangup = () => {
+  // Appeler fetchCallHistory après la connexion et après chaque appel
+  useEffect(() => {
+    if (isLoggedIn) {
+      fetchCallHistory();
+    }
+  }, [isLoggedIn, fetchCallHistory]);
+  const handleRefresh = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      if (userAgent) {
+        await new Promise((resolve, reject) => {
+          userAgent.unregister();
+          userAgent.once('unregistered', resolve);
+          userAgent.once('registrationFailed', reject);
+
+          // Ajoute un timeout au cas où l'unregister ne se termine pas
+          const timeoutId = setTimeout(() => {
+            reject(new Error('Unregister timeout'));
+          }, 5000);
+
+          // Nettoie le timeout si l'unregister se termine avant
+          userAgent.once('unregistered', () => clearTimeout(timeoutId));
+          userAgent.once('registrationFailed', () => clearTimeout(timeoutId));
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        await new Promise((resolve, reject) => {
+          userAgent.register();
+          userAgent.once('registered', resolve);
+          userAgent.once('registrationFailed', reject);
+
+          // Ajoute un timeout au cas où le register ne se termine pas
+          const timeoutId = setTimeout(() => {
+            reject(new Error('Register timeout'));
+          }, 5000);
+
+          // Nettoie le timeout si le register se termine avant
+          userAgent.once('registered', () => clearTimeout(timeoutId));
+          userAgent.once('registrationFailed', () => clearTimeout(timeoutId));
+        });
+      }
+      await fetchCallHistory();
+      setConnectionFailed(false);
+      console.log('Application refreshed successfully');
+    } catch (error) {
+      console.error('Error refreshing application:', error);
+      setConnectionFailed(true);
+      // Tente de se reconnecter après une erreur
+      setTimeout(() => userAgent.register(), 5000);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userAgent, fetchCallHistory]);
+  // Fonction pour raccrocher
+  const handleHangup = useCallback(async () => {
     if (session) {
       console.log('Hanging up call');
       session.terminate();
+
+      // Insérer les données CDR
+      if (token) {
+        try {
+          const now = new Date();
+
+          const nowInFrance = moment().tz('Europe/Paris').add(2, 'hours');
+          const utcNow = nowInFrance.clone().tz('UTC');
+
+          const start_time = session.start_time
+            ? moment(session.start_time).tz('Europe/Paris').add(2, 'hours').tz('UTC')
+            : utcNow;
+          const connect_time = session.connect_time
+            ? moment(session.connect_time).tz('Europe/Paris').add(2, 'hours').tz('UTC')
+            : utcNow;
+
+          const cdrData = {
+            local_ip_v4: '192.168.1.201', // Remplacez par l'IP réelle
+            caller_id_name: session.remote_identity?.display_name || '',
+            caller_id_number: session.remote_identity?.uri?.user || '',
+            destination_number: session.local_identity?.uri?.user || '',
+            context: 'default',
+            start_stamp: start_time.toISOString(),
+            answer_stamp: connect_time.toISOString(),
+            end_stamp: utcNow.toISOString(),
+            duration: Math.max(0, utcNow.diff(start_time, 'seconds')),
+            billsec: Math.max(0, utcNow.diff(connect_time, 'seconds')),
+            hangup_cause: session.cause || '',
+            uuid: session.id || '',
+            bleg_uuid: '',
+            accountcode: '',
+            read_codec: session.connection?.getReceivers()[0]?.track.getSettings().codec || '',
+            write_codec: session.connection?.getSenders()[0]?.track.getSettings().codec || '',
+            sip_hangup_disposition: '',
+            ani: session.local_identity?.uri?.user || '',
+          };
+
+          const response = await fetch('http://192.168.1.201/api/cdr', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify(cdrData),
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to insert CDR data');
+          }
+
+          console.log('CDR data inserted successfully');
+        } catch (error) {
+          console.error('Error inserting CDR data:', error);
+        }
+      }
     }
+    await fetchCallHistory(); // Mettre à jour l'historique après l'appel
+
+  }, [session, token, fetchCallHistory]);
+
+  // Fonction de déconnexion
+  const handleLogout = useCallback(() => {
+    if (userAgent) {
+      userAgent.stop();
+    } localStorage.removeItem('sessionToken');
+
+    setIsLoggedIn(false);
+    setUsername('');
+    setCallTo('');
+    setRegistrationStatus('');
+    setCallStatus('');
+    setIsVideoEnabled(false);
+  }, [userAgent]);
+
+  // Fonction pour gérer l'appui sur une touche du clavier numérique
+  const handleKeyPress = useCallback((key) => {
+    setCallTo(prevCallTo => prevCallTo + key);
+  }, []);
+
+  // Fonctions pour gérer les changements de thème, de langue et de profil
+  const handleThemeChange = (newTheme) => {
+    setTheme(newTheme);
   };
 
+  const handleLanguageChange = (newLanguage) => {
+    setLanguage(newLanguage);
+  };
+
+  const handleProfileUpdate = (newProfile) => {
+    setProfile(newProfile);
+  };
+  const handleProfilePhotoClick = () => {
+    setCurrentPage('profile');
+  };
+  // Si l'utilisateur n'est pas connecté, afficher la page de connexion
+  if (!isLoggedIn) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
+
+  // Configuration des boutons du clavier numérique
+  const keypadButtons = [
+    { key: '1', letters: '' },
+    { key: '2', letters: 'ABC' },
+    { key: '3', letters: 'DEF' },
+    { key: '4', letters: 'GHI' },
+    { key: '5', letters: 'JKL' },
+    { key: '6', letters: 'MNO' },
+    { key: '7', letters: 'PQRS' },
+    { key: '8', letters: 'TUV' },
+    { key: '9', letters: 'WXYZ' },
+    { key: '*', letters: '' },
+    { key: '0', letters: '+' },
+    { key: '#', letters: '' },
+  ];
+
+  if (!isLoggedIn) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
+
+
+  // Rendu de l'interface utilisateur principale
   return (
-    <div>
-      <h2>{username}</h2>
-      <p>Status: {registrationStatus}</p>
-      <p>Call Status: {callStatus}</p>
-      {!incomingCall && <button onClick={handleCall}>Call {callTo}</button>}
-      {incomingCall && (
-        <>
-          <button onClick={handleAnswer}>Answer</button>
-          <button onClick={handleReject}>Reject</button>
-        </>
-      )}
-      <button onClick={handleHangup}>Hang up</button>
-      <div>
+    <div className={`app-container ${theme}`}>
+      <CustomTitleBar />
+      <div className="app-content">
+        <SideMenu
+          onNavigate={setCurrentPage}
+          currentPage={currentPage}
+          onRefresh={handleRefresh}
+
+        />
+        <main className="app-main">
+          {currentPage === 'home' && (
+            <>
+              <header className="app-header">
+                <img
+                  src={profile.photo || defaultPhoto}
+                  alt=""
+                  id="profile-photo"
+                  onClick={handleProfilePhotoClick}
+                  style={{ cursor: 'pointer' }}
+                />
+                <h2>
+                  {profile.name || username}
+                  {connectionFailed && (
+                    <span
+                      className="connection-warning"
+                      title="Connection failed. Please try refreshing."
+                    >
+                      ⚠️
+                    </span>
+                  )}
+                </h2>
+                <button className="logout-button" onClick={handleLogout}>Logout</button>
+              </header>
+              <div className="call-status">
+                <p>Call Status: {callStatus}</p>
+              </div>
+              <div className="keypad">
+                <input
+                  type="text"
+                  value={callTo}
+                  onChange={(e) => setCallTo(e.target.value)}
+                  placeholder="Enter number"
+                  className="call-input"
+                />
+                <div className="keypad-buttons">
+                  {keypadButtons.map((button) => (
+                    <button
+                      key={button.key}
+                      onClick={() => handleKeyPress(button.key)}
+                      className="keypad-button"
+                    >
+                      {button.key}
+                      <small>{button.letters}</small>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="call-controls">
+  {!session && !incomingCall && (
+    <>
+      <button className="call-button" onClick={() => handleCall(false)} title="Voice Call">
+        <span role="img" aria-label="Voice Call">📞</span>
+      </button>
+      <button className="video-call-button" onClick={() => handleCall(true)} title="Video Call">
+        <span role="img" aria-label="Video Call">🎥</span>
+      </button>
+    </>
+  )}
+  {incomingCall && (
+    <>
+      <button className="answer-button" onClick={handleAnswer}>Answer</button>
+      <button className="reject-button" onClick={handleReject}>Reject</button>
+    </>
+  )}
+  {session && (
+    <>
+      <button className="hangup-button" onClick={handleHangup} title="Hang Up">
+        <span role="img" aria-label="Hang Up">📴</span>
+      </button>
+      <button
+        className={`toggle-video-button ${isVideoEnabled ? 'active' : ''}`}
+        onClick={toggleVideo}
+        title={isVideoEnabled ? "Disable Video" : "Enable Video"}
+      >
+        <span role="img" aria-label="Toggle Video">{isVideoEnabled ? '🎥' : '🚫'}</span>
+      </button>
+      <button
+        className={`toggle-audio-button ${isAudioEnabled ? 'active' : ''}`}
+        onClick={toggleAudio}
+        title={isAudioEnabled ? "Mute Audio" : "Unmute Audio"}
+      >
+        <span role="img" aria-label="Toggle Audio">{isAudioEnabled ? '🔊' : '🔇'}</span>
+      </button>
+    </>
+  )}
+</div>
+              <div className="video-container">
+  {isVideoEnabled && (
+    <>
+      <div className="video-box">
         <h3>Local Video</h3>
-        <video ref={localVideoRef} autoPlay muted style={{ width: '320px' }}></video>
+        <video ref={localVideoRef} autoPlay muted></video>
       </div>
-      <div>
+      <div className="video-box">
         <h3>Remote Video</h3>
-        <video ref={remoteVideoRef} autoPlay style={{ width: '320px' }}></video>
+        <video ref={remoteVideoRef} autoPlay></video>
       </div>
+    </>
+  )}
+</div>
+            </>
+          )}
+          {currentPage === 'callHistory' && (
+            <CallHistory history={callHistory} username={username} />
+          )}
+          {currentPage === 'profile' && (
+            <div className="profile-page">
+              <h2>Profile</h2>
+              <div className="profile-content">
+                <img
+                  id="profile-photo"
+
+                  src={profile.photo ? profile.photo : defaultPhoto}
+                  alt="Photo de profil"
+                />               <div className="profile-details">
+                  <h3>{profile.name || username}</h3>
+                  <p>Email: {profile.email}</p>
+                  <p>Bio: {profile.bio}</p>
+                </div>
+              </div>
+              <button onClick={() => setShowProfile(true)}>Edit Profile</button>
+            </div>
+          )}
+          {currentPage === 'settings' && (
+            <div className="settings-page">
+              <h2>Settings</h2>
+              <div className="settings-content">
+                <div className="setting-item">
+                  <label htmlFor="theme-select">Theme:</label>
+                  <select
+                    id="theme-select"
+                    value={theme}
+                    onChange={(e) => handleThemeChange(e.target.value)}
+                  >
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                  </select>
+                </div>
+                <div className="setting-item">
+                  <label htmlFor="language-select">Language:</label>
+                  <select
+                    id="language-select"
+                    value={language}
+                    onChange={(e) => handleLanguageChange(e.target.value)}
+                  >
+                    <option value="en">English</option>
+                    <option value="fr">Français</option>
+                  </select>
+                </div>
+                <div className="setting-item">
+                  <h3>Test Audio and Video</h3>
+                  <button onClick={() => {/* Ajoutez ici la logique pour tester l'audio */ }}>
+                    Test Microphone
+                  </button>
+                  <button onClick={() => {/* Ajoutez ici la logique pour tester la vidéo */ }}>
+                    Test Camera
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
+      {showProfile && (
+        <Profile
+          onClose={() => setShowProfile(false)}
+          profile={profile}
+          onUpdate={handleProfileUpdate}
+        />
+      )}
+      {isLoading && <LoadingSpinner />} {/* Ajoutez cette ligne */}
+
     </div>
   );
 }

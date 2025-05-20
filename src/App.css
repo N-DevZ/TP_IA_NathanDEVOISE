@@ -1,38 +1,223 @@
-.App {
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  font-family: Arial, sans-serif;
+}
+
+.app-main {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.app-content {
+  display: flex;
+  flex: 1;
+}
+
+.app-header {
+  background-color: #4CAF50;
+  color: white;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  position: relative;
+}
+
+#profile-photo {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-right: 10px;
+}
+
+.app-header h2 {
+  margin: 0;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+}
+
+.logout-button {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  background-color: #f44336;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.connection-warning {
+  color: red;
+  margin-left: 5px;
+  font-size: 20px;
+  cursor: help;
+}
+
+.call-status {
   text-align: center;
+  font-size: 16px;
+  margin-bottom: 15px;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
+.keypad {
   display: flex;
   flex-direction: column;
   align-items: center;
+  margin-bottom: 20px;
+}
+
+.call-input {
+  width: 15vh;
+  max-width: 300px;
+  padding: 8px;
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+
+.keypad-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.keypad-button {
+  width: 50px;
+  height: 50px;
+  font-size: 20px;
+  background-color: #ddd;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
   justify-content: center;
-  font-size: calc(10px + 2vmin);
+  align-items: center;
+}
+
+.keypad-button small {
+  font-size: 8px;
+}
+
+.call-controls {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.call-controls button {
+  font-size: 24px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.call-button {
+  background-color: #4CAF50;
   color: white;
 }
 
-.App-link {
-  color: #61dafb;
+.video-call-button {
+  background-color: #2196F3;
+  color: white;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.hangup-button {
+  background-color: #f44336;
+  color: white;
+}
+
+.toggle-video-button, .toggle-audio-button {
+  background-color: #757575;
+  color: white;
+}
+
+.toggle-video-button.active, .toggle-audio-button.active {
+  background-color: #4CAF50;
+}
+
+.video-container {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+.video-box {
+  width: 48%;
+}
+
+.video-box h3 {
+  text-align: center;
+  font-size: 16px;
+}
+
+.video-box video {
+  width: 100%;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+/* Thèmes */
+.app-container.light {
+  background-color: #f0f0f0;
+  color: #333;
+}
+
+.app-container.dark {
+  background-color: #333;
+  color: #f0f0f0;
+}
+
+/* Styles pour les modales */
+.settings-modal,
+.profile-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+
+.settings-modal h2,
+.profile-modal h2 {
+  margin-top: 0;
+}
+
+.settings-modal label,
+.profile-modal label {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.settings-modal select,
+.profile-modal input[type="text"],
+.settings-modal input[type="email"],
+.profile-modal textarea {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 10px;
+}
+
+.settings-modal button,
+.profile-modal button {
+  padding: 8px 15px;
+  margin-right: 10px;
+  cursor: pointer;
 }

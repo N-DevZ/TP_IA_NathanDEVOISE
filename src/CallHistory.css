@@ -1,0 +1,46 @@
+.call-history {
+  margin-top: 20px;
+  padding: 10px;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+}
+
+.call-history h3 {
+  margin-bottom: 10px;
+}
+
+.call-item {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  border-bottom: 1px solid #ddd;
+}
+
+.call-icon {
+  margin-right: 10px;
+  font-size: 1.2em;
+}
+
+.call-number {
+  flex-grow: 1;
+  font-weight: bold;
+}
+
+.call-time {
+  margin-right: 10px;
+  color: #666;
+}
+
+.call-duration {
+  color: #444;
+}
+
+.normal_clearing {
+  background-color: #e6f7ff;
+}
+
+.no_answer {
+  background-color: #fff1f0;
+}
+
+/* Ajoutez d'autres styles pour différents types d'appels si nécessaire */

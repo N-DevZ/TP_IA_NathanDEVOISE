@@ -1,0 +1,39 @@
+.custom-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 30px;
+  background-color: #f0f0f0;
+  -webkit-app-region: drag;
+}
+
+.titlebar-drag-region {
+  flex: 1;
+  -webkit-app-region: drag;
+}
+
+.window-title {
+  margin-left: 10px;
+}
+
+.window-controls {
+  display: flex;
+  -webkit-app-region: no-drag;
+}
+
+.control-btn {
+  width: 45px;
+  height: 30px;
+  border: none;
+  background: none;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
+.minimize-btn:hover { background-color: #e0e0e0; }
+.maximize-btn:hover { background-color: #e0e0e0; }
+.close-btn:hover { background-color: #e81123; color: white; }
