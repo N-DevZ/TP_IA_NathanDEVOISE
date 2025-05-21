@@ -11,7 +11,7 @@
   padding: 2rem;
   border-radius: 8px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  width: 300px;
+  width: 40vh;
 }
 
 .login-form h2 {
@@ -21,7 +21,7 @@
 }
 
 .login-form input {
-  width: 100%;
+  width: 38vh;
   padding: 0.5rem;
   margin-bottom: 1rem;
   border: none;
@@ -29,7 +29,7 @@
 }
 
 .login-form button {
-  width: 100%;
+  width: 40vh;
   padding: 0.5rem;
   background-color: #3498db;
   color: white;

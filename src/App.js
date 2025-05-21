@@ -11,6 +11,9 @@ import SideMenu from './SideMenu';
 import defaultPhoto from './assets/pdp.png';
 import './LoadingSpinner.css';
 import LoadingSpinner from './LoadingSpinner';
+import ContactDirectory from './ContactDirectory';
+import { translations } from './translations';
+
 // Activation du débogage JsSIP
 JsSIP.debug.enable('JsSIP:*');
 
@@ -27,7 +30,7 @@ function App() {
   const [callHistory, setCallHistory] = useState([]);
   const [currentPage, setCurrentPage] = useState('home');
   const [isLoading, setIsLoading] = useState(false);
-const [isAudioEnabled, setIsAudioEnabled] = useState(true);
+  const [isAudioEnabled, setIsAudioEnabled] = useState(true);
 
   const [registrationStatus, setRegistrationStatus] = useState('');
   const [callStatus, setCallStatus] = useState('');
@@ -43,6 +46,16 @@ const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const [theme, setTheme] = useState('light');
   const [language, setLanguage] = useState('en');
   const [token, setToken] = useState(null);
+  const [isTestingMic, setIsTestingMic] = useState(false);
+  const [isTestingVideo, setIsTestingVideo] = useState(false);
+  const audioVisualizerRef = useRef(null);
+  const videoPreviewRef = useRef(null);
+  const [audioDevices, setAudioDevices] = useState([]);
+  const [videoDevices, setVideoDevices] = useState([]);
+  const [selectedAudioDevice, setSelectedAudioDevice] = useState('');
+  const [selectedVideoDevice, setSelectedVideoDevice] = useState('');
+  const t = (key) => translations[language][key] || key;
+
   const [profile, setProfile] = useState({
     name: '',
     email: '',
@@ -50,11 +63,12 @@ const [isAudioEnabled, setIsAudioEnabled] = useState(true);
     color: '#000000',
     photo: null,
   });
-
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedProfile, setEditedProfile] = useState({ ...profile });
 
   const generateToken = useCallback(async () => {
     try {
-      const response = await fetch('http://192.168.1.201:3000/auth/token', {
+      const response = await fetch('http://192.168.1.29:3000/auth/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -100,14 +114,14 @@ const [isAudioEnabled, setIsAudioEnabled] = useState(true);
     setUsername(extension);
 
     // Configuration SIP
-    const socket = new JsSIP.WebSocketInterface('ws://192.168.1.201:5066');
+    const socket = new JsSIP.WebSocketInterface('ws://192.168.1.29:5066');
     const configuration = {
       sockets: [socket],
-      uri: `sip:${extension}@192.168.1.201:5070`,
+      uri: `sip:${extension}@192.168.1.29:5070`,
       password: password,
       sessionTimersExpires: 600,
       register: true,
-      registrar_server: 'sip:192.168.1.201',
+      registrar_server: 'sip:192.168.1.29',
       pcConfig: {
         iceServers: [
           { urls: ['stun:stun.freeswitch.org'] },
@@ -125,10 +139,10 @@ const [isAudioEnabled, setIsAudioEnabled] = useState(true);
 
     const ua = new JsSIP.UA(configuration);
     setInterval(() => {
-  if (ua.isRegistered()) {
-    ua.sendOptions(`sip:${extension}@192.168.1.201:5070`);
-  }
-}, 30000);
+      if (ua.isRegistered()) {
+        ua.sendOptions(`sip:${extension}@192.168.1.29:5070`);
+      }
+    }, 30000);
     // Gestion des événements de l'agent utilisateur
     ua.on('connected', () => {
       console.log(`${extension} connected to FreeSWITCH server`);
@@ -309,8 +323,8 @@ const [isAudioEnabled, setIsAudioEnabled] = useState(true);
         sessionTimersExpires: 600
       };
 
-      console.log('Initiating call to:', `sip:${callTo}@192.168.1.201:5070`);
-      const newSession = userAgent.call(`sip:${callTo}@192.168.1.201:5070`, options);
+      console.log('Initiating call to:', `sip:${callTo}@192.168.1.29:5070`);
+      const newSession = userAgent.call(`sip:${callTo}@192.168.1.29:5070`, options);
       setSession(newSession);
       setCallStatus('Calling...');
       setIsVideoEnabled(withVideo);
@@ -336,30 +350,131 @@ const [isAudioEnabled, setIsAudioEnabled] = useState(true);
       console.error('Error accessing media devices:', error);
     }
   }, [userAgent, callTo]);
-const toggleVideo = useCallback(() => {
-  if (session) {
-    const videoTrack = session.connection.getSenders()
-      .find(sender => sender.track && sender.track.kind === 'video');
-    if (videoTrack) {
-      videoTrack.track.enabled = !videoTrack.track.enabled;
-      setIsVideoEnabled(videoTrack.track.enabled);
-    } else if (!isVideoEnabled) {
-      // Si la vidéo n'est pas encore activée, on l'active
-      handleCall(true);
-    }
-  }
-}, [session, isVideoEnabled, handleCall]);
+  const handleEdit = (field) => {
+    setIsEditing(true);
+    setEditedProfile({ ...profile });
+  };
 
-const toggleAudio = useCallback(() => {
-  if (session) {
-    const audioTrack = session.connection.getSenders()
-      .find(sender => sender.track && sender.track.kind === 'audio');
-    if (audioTrack) {
-      audioTrack.track.enabled = !audioTrack.track.enabled;
-      setIsAudioEnabled(audioTrack.track.enabled);
+  const handleCancel = () => {
+    setIsEditing(false);
+    setEditedProfile({ ...profile });
+  };
+
+  const handleSave = () => {
+    setProfile({ ...editedProfile });
+    setIsEditing(false);
+    // Ici, vous pouvez ajouter une logique pour sauvegarder les modifications sur le serveur
+  };
+  const handleTestMicrophone = async () => {
+    setIsTestingMic(!isTestingMic);
+    if (!isTestingMic) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: { deviceId: selectedAudioDevice }
+        });
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const analyser = audioContext.createAnalyser();
+        const microphone = audioContext.createMediaStreamSource(stream);
+        microphone.connect(analyser);
+        analyser.fftSize = 256;
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+
+        const canvas = audioVisualizerRef.current;
+        const canvasCtx = canvas.getContext('2d');
+        const draw = () => {
+          requestAnimationFrame(draw);
+          analyser.getByteFrequencyData(dataArray);
+          canvasCtx.fillStyle = 'rgb(200, 200, 200)';
+          canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+          const barWidth = (canvas.width / bufferLength) * 2.5;
+          let barHeight;
+          let x = 0;
+          for (let i = 0; i < bufferLength; i++) {
+            barHeight = dataArray[i] / 2;
+            canvasCtx.fillStyle = `rgb(${barHeight + 100}, 50, 50)`;
+            canvasCtx.fillRect(x, canvas.height - barHeight / 2, barWidth, barHeight);
+            x += barWidth + 1;
+          }
+        };
+        draw();
+      } catch (error) {
+        console.error('Error accessing microphone:', error);
+      }
     }
-  }
-}, [session]);
+  };
+
+  const handleTestCamera = async () => {
+    setIsTestingVideo(!isTestingVideo);
+    if (!isTestingVideo) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { deviceId: selectedVideoDevice }
+        });
+        videoPreviewRef.current.srcObject = stream;
+      } catch (error) {
+        console.error('Error accessing camera:', error);
+      }
+    } else {
+      const stream = videoPreviewRef.current.srcObject;
+      const tracks = stream.getTracks();
+      tracks.forEach(track => track.stop());
+    }
+  };
+  const handleInputChange = (field, value) => {
+    setEditedProfile({ ...editedProfile, [field]: value });
+  };
+  const handlePhotoChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfile({ ...profile, photo: reader.result });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  const toggleVideo = useCallback(() => {
+    if (session) {
+      const videoTrack = session.connection.getSenders()
+        .find(sender => sender.track && sender.track.kind === 'video');
+      if (videoTrack) {
+        videoTrack.track.enabled = !videoTrack.track.enabled;
+        setIsVideoEnabled(videoTrack.track.enabled);
+      } else if (!isVideoEnabled) {
+        // Si la vidéo n'est pas encore activée, on l'active
+        handleCall(true);
+      }
+    }
+  }, [session, isVideoEnabled, handleCall]);
+
+  const toggleAudio = useCallback(() => {
+    if (session) {
+      const audioTrack = session.connection.getSenders()
+        .find(sender => sender.track && sender.track.kind === 'audio');
+      if (audioTrack) {
+        audioTrack.track.enabled = !audioTrack.track.enabled;
+        setIsAudioEnabled(audioTrack.track.enabled);
+      }
+    }
+  }, [session]);
+
+  const getDevices = useCallback(async () => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const audioInputs = devices.filter(device => device.kind === 'audioinput');
+      const videoInputs = devices.filter(device => device.kind === 'videoinput');
+      setAudioDevices(audioInputs);
+      setVideoDevices(videoInputs);
+      if (audioInputs.length > 0) setSelectedAudioDevice(audioInputs[0].deviceId);
+      if (videoInputs.length > 0) setSelectedVideoDevice(videoInputs[0].deviceId);
+    } catch (error) {
+      console.error('Error getting devices:', error);
+    }
+  }, []);
+  useEffect(() => {
+    getDevices();
+  }, [getDevices]);
   // Fonction pour répondre à un appel entrant
   const handleAnswer = useCallback(async () => {
     if (incomingCall) {
@@ -405,7 +520,7 @@ const toggleAudio = useCallback(() => {
   const fetchCallHistory = useCallback(async () => {
     if (token && username) {
       try {
-        const response = await fetch(`http://192.168.1.201:3000/cdr/${username}`, {
+        const response = await fetch(`http://192.168.1.29:3000/cdr/${username}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
@@ -497,7 +612,7 @@ const toggleAudio = useCallback(() => {
             : utcNow;
 
           const cdrData = {
-            local_ip_v4: '192.168.1.201', // Remplacez par l'IP réelle
+            local_ip_v4: '192.168.1.29', // Remplacez par l'IP réelle
             caller_id_name: session.remote_identity?.display_name || '',
             caller_id_number: session.remote_identity?.uri?.user || '',
             destination_number: session.local_identity?.uri?.user || '',
@@ -517,7 +632,7 @@ const toggleAudio = useCallback(() => {
             ani: session.local_identity?.uri?.user || '',
           };
 
-          const response = await fetch('http://192.168.1.201/api/cdr', {
+          const response = await fetch('http://192.168.1.29:3000/cdr', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -596,196 +711,294 @@ const toggleAudio = useCallback(() => {
   ];
 
   if (!isLoggedIn) {
-    return <LoginPage onLogin={handleLogin} />;
+    return <LoginPage onLogin={handleLogin} t={t} />;
   }
 
 
   // Rendu de l'interface utilisateur principale
   return (
-    <div className={`app-container ${theme}`}>
-      <CustomTitleBar />
-      <div className="app-content">
-        <SideMenu
-          onNavigate={setCurrentPage}
-          currentPage={currentPage}
-          onRefresh={handleRefresh}
-
-        />
-        <main className="app-main">
-          {currentPage === 'home' && (
-            <>
-              <header className="app-header">
+  <div className={`app-container ${theme}`}>
+    <CustomTitleBar />
+    <div className="app-content">
+      <SideMenu
+        onNavigate={setCurrentPage}
+        currentPage={currentPage}
+        onRefresh={handleRefresh}
+        t={t}
+      />
+      <main className="app-main">
+        {currentPage === 'home' && (
+          <>
+            <header className="app-header">
+              <img
+                src={profile.photo || defaultPhoto}
+                alt=""
+                id="profile-photo"
+                onClick={handleProfilePhotoClick}
+                style={{ cursor: 'pointer' }}
+              />
+              <h2>
+                {profile.name || username}
+                {connectionFailed && (
+                  <span
+                    className="connection-warning"
+                    title={t('connectionFailedWarning')}
+                  >
+                    ⚠️
+                  </span>
+                )}
+              </h2>
+              <button className="logout-button" onClick={handleLogout}>{t('logout')}</button>
+            </header>
+            <div className="call-status">
+              <p>{t('callStatus')}: {t(callStatus)}</p>
+            </div>
+            <div className="keypad">
+              <input
+                type="text"
+                value={callTo}
+                onChange={(e) => setCallTo(e.target.value)}
+                placeholder={t('enterNumber')}
+                className="call-input"
+              />
+              <div className="keypad-buttons">
+                {keypadButtons.map((button) => (
+                  <button
+                    key={button.key}
+                    onClick={() => handleKeyPress(button.key)}
+                    className="keypad-button"
+                  >
+                    {button.key}
+                    <small>{button.letters}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="call-controls">
+              {!session && !incomingCall && (
+                <>
+                  <button className="call-button" onClick={() => handleCall(false)} title={t('voiceCall')}>
+                    <span role="img" aria-label={t('voiceCall')}>📞</span>
+                  </button>
+                  <button className="video-call-button" onClick={() => handleCall(true)} title={t('videoCall')}>
+                    <span role="img" aria-label={t('videoCall')}>🎥</span>
+                  </button>
+                </>
+              )}
+              {incomingCall && (
+                <>
+                  <button className="answer-button" onClick={handleAnswer}>{t('answer')}</button>
+                  <button className="reject-button" onClick={handleReject}>{t('reject')}</button>
+                </>
+              )}
+              {session && (
+                <>
+                  <button className="hangup-button" onClick={handleHangup} title={t('hangUp')}>
+                    <span role="img" aria-label={t('hangUp')}>📴</span>
+                  </button>
+                  <button
+                    className={`toggle-video-button ${isVideoEnabled ? 'active' : ''}`}
+                    onClick={toggleVideo}
+                    title={isVideoEnabled ? t('disableVideo') : t('enableVideo')}
+                  >
+                    <span role="img" aria-label={t('toggleVideo')}>{isVideoEnabled ? '🎥' : '🚫'}</span>
+                  </button>
+                  <button
+                    className={`toggle-audio-button ${isAudioEnabled ? 'active' : ''}`}
+                    onClick={toggleAudio}
+                    title={isAudioEnabled ? t('muteAudio') : t('unmuteAudio')}
+                  >
+                    <span role="img" aria-label={t('toggleAudio')}>{isAudioEnabled ? '🔊' : '🔇'}</span>
+                  </button>
+                </>
+              )}
+            </div>
+            <div className="video-container">
+              {isVideoEnabled && (
+                <>
+                  <div className="video-box">
+                    <h3>{t('localVideo')}</h3>
+                    <video ref={localVideoRef} autoPlay muted></video>
+                  </div>
+                  <div className="video-box">
+                    <h3>{t('remoteVideo')}</h3>
+                    <video ref={remoteVideoRef} autoPlay></video>
+                  </div>
+                </>
+              )}
+            </div>
+          </>
+        )}
+        {currentPage === 'callHistory' && (
+          <CallHistory history={callHistory} username={username} t={t} />
+        )}
+        {currentPage === 'contacts' && (
+          <ContactDirectory 
+            onCallContact={(number) => {
+              setCallTo(number);
+              setCurrentPage('home');
+            }} 
+            token={token}
+            t={t}
+          />
+        )}
+        {currentPage === 'profile' && (
+          <div className="profile-page">
+            <div className="profile-header">
+              <input
+                type="file"
+                id="photo-upload"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handlePhotoChange}
+              />
+              <div
+                className="profile-photo-container"
+                onClick={() => document.getElementById('photo-upload').click()}
+                title={t('changeProfilePicture')}
+              >
                 <img
                   src={profile.photo || defaultPhoto}
-                  alt=""
-                  id="profile-photo"
-                  onClick={handleProfilePhotoClick}
-                  style={{ cursor: 'pointer' }}
+                  alt={t('profilePicture')}
+                  className="profile-photo"
                 />
-                <h2>
-                  {profile.name || username}
-                  {connectionFailed && (
-                    <span
-                      className="connection-warning"
-                      title="Connection failed. Please try refreshing."
-                    >
-                      ⚠️
-                    </span>
-                  )}
-                </h2>
-                <button className="logout-button" onClick={handleLogout}>Logout</button>
-              </header>
-              <div className="call-status">
-                <p>Call Status: {callStatus}</p>
+                <div className="profile-photo-overlay">
+                  <span className="profile-photo-icon">📷</span>
+                </div>
               </div>
-              <div className="keypad">
-                <input
-                  type="text"
-                  value={callTo}
-                  onChange={(e) => setCallTo(e.target.value)}
-                  placeholder="Enter number"
-                  className="call-input"
-                />
-                <div className="keypad-buttons">
-                  {keypadButtons.map((button) => (
-                    <button
-                      key={button.key}
-                      onClick={() => handleKeyPress(button.key)}
-                      className="keypad-button"
-                    >
-                      {button.key}
-                      <small>{button.letters}</small>
-                    </button>
+              <h2 className="profile-name">{profile.name || username}</h2>
+            </div>
+
+            <div className="profile-field">
+              <label>{t('name')}</label>
+              <input
+                type="text"
+                value={isEditing ? editedProfile.name : profile.name}
+                readOnly={!isEditing}
+                onChange={(e) => handleInputChange('name', e.target.value)}
+              />
+              {!isEditing && <button className="edit-button" onClick={() => handleEdit('name')}>✏️</button>}
+            </div>
+
+            <div className="profile-field">
+              <label>{t('email')}</label>
+              <input
+                type="email"
+                value={isEditing ? editedProfile.email : profile.email}
+                readOnly={!isEditing}
+                onChange={(e) => handleInputChange('email', e.target.value)}
+              />
+              {!isEditing && <button className="edit-button" onClick={() => handleEdit('email')}>✏️</button>}
+            </div>
+
+            <div className="profile-field">
+              <label>{t('bio')}</label>
+              <textarea
+                value={isEditing ? editedProfile.bio : profile.bio}
+                readOnly={!isEditing}
+                onChange={(e) => handleInputChange('bio', e.target.value)}
+              ></textarea>
+              {!isEditing && <button className="edit-button" onClick={() => handleEdit('bio')}>✏️</button>}
+            </div>
+
+            {isEditing && (
+              <div className="profile-actions">
+                <button className="cancel-button" onClick={handleCancel}>{t('cancel')}</button>
+                <button className="save-button" onClick={handleSave}>{t('save')}</button>
+              </div>
+            )}
+          </div>
+        )}
+        {currentPage === 'settings' && (
+          <div className="settings-page">
+            <h2>{t('settings')}</h2>
+            <div className="settings-section">
+              <h3>{t('appearance')}</h3>
+              <div className="setting-item">
+                <label htmlFor="theme-select">{t('theme')}:</label>
+                <select
+                  id="theme-select"
+                  value={theme}
+                  onChange={(e) => handleThemeChange(e.target.value)}
+                >
+                  <option value="light">{t('light')}</option>
+                  <option value="dark">{t('dark')}</option>
+                </select>
+              </div>
+              <div className="setting-item">
+                <label htmlFor="language-select">{t('language')}:</label>
+                <select
+                  id="language-select"
+                  value={language}
+                  onChange={(e) => handleLanguageChange(e.target.value)}
+                >
+                  <option value="en">English</option>
+                  <option value="fr">Français</option>
+                </select>
+              </div>
+            </div>
+            <div className="settings-section">
+              <h3>{t('audioAndVideo')}</h3>
+              <div className="setting-item">
+                <label htmlFor="audio-device-select">{t('audioInputDevice')}:</label>
+                <select
+                  id="audio-device-select"
+                  value={selectedAudioDevice}
+                  onChange={(e) => setSelectedAudioDevice(e.target.value)}
+                >
+                  {audioDevices.map((device) => (
+                    <option key={device.deviceId} value={device.deviceId}>
+                      {device.label || `${t('microphone')} ${audioDevices.indexOf(device) + 1}`}
+                    </option>
                   ))}
-                </div>
+                </select>
               </div>
-              <div className="call-controls">
-  {!session && !incomingCall && (
-    <>
-      <button className="call-button" onClick={() => handleCall(false)} title="Voice Call">
-        <span role="img" aria-label="Voice Call">📞</span>
-      </button>
-      <button className="video-call-button" onClick={() => handleCall(true)} title="Video Call">
-        <span role="img" aria-label="Video Call">🎥</span>
-      </button>
-    </>
-  )}
-  {incomingCall && (
-    <>
-      <button className="answer-button" onClick={handleAnswer}>Answer</button>
-      <button className="reject-button" onClick={handleReject}>Reject</button>
-    </>
-  )}
-  {session && (
-    <>
-      <button className="hangup-button" onClick={handleHangup} title="Hang Up">
-        <span role="img" aria-label="Hang Up">📴</span>
-      </button>
-      <button
-        className={`toggle-video-button ${isVideoEnabled ? 'active' : ''}`}
-        onClick={toggleVideo}
-        title={isVideoEnabled ? "Disable Video" : "Enable Video"}
-      >
-        <span role="img" aria-label="Toggle Video">{isVideoEnabled ? '🎥' : '🚫'}</span>
-      </button>
-      <button
-        className={`toggle-audio-button ${isAudioEnabled ? 'active' : ''}`}
-        onClick={toggleAudio}
-        title={isAudioEnabled ? "Mute Audio" : "Unmute Audio"}
-      >
-        <span role="img" aria-label="Toggle Audio">{isAudioEnabled ? '🔊' : '🔇'}</span>
-      </button>
-    </>
-  )}
-</div>
-              <div className="video-container">
-  {isVideoEnabled && (
-    <>
-      <div className="video-box">
-        <h3>Local Video</h3>
-        <video ref={localVideoRef} autoPlay muted></video>
-      </div>
-      <div className="video-box">
-        <h3>Remote Video</h3>
-        <video ref={remoteVideoRef} autoPlay></video>
-      </div>
-    </>
-  )}
-</div>
-            </>
-          )}
-          {currentPage === 'callHistory' && (
-            <CallHistory history={callHistory} username={username} />
-          )}
-          {currentPage === 'profile' && (
-            <div className="profile-page">
-              <h2>Profile</h2>
-              <div className="profile-content">
-                <img
-                  id="profile-photo"
-
-                  src={profile.photo ? profile.photo : defaultPhoto}
-                  alt="Photo de profil"
-                />               <div className="profile-details">
-                  <h3>{profile.name || username}</h3>
-                  <p>Email: {profile.email}</p>
-                  <p>Bio: {profile.bio}</p>
-                </div>
+              <div className="setting-item">
+                <label htmlFor="video-device-select">{t('videoInputDevice')}:</label>
+                <select
+                  id="video-device-select"
+                  value={selectedVideoDevice}
+                  onChange={(e) => setSelectedVideoDevice(e.target.value)}
+                >
+                  {videoDevices.map((device) => (
+                    <option key={device.deviceId} value={device.deviceId}>
+                      {device.label || `${t('camera')} ${videoDevices.indexOf(device) + 1}`}
+                    </option>
+                  ))}
+                </select>
               </div>
-              <button onClick={() => setShowProfile(true)}>Edit Profile</button>
-            </div>
-          )}
-          {currentPage === 'settings' && (
-            <div className="settings-page">
-              <h2>Settings</h2>
-              <div className="settings-content">
-                <div className="setting-item">
-                  <label htmlFor="theme-select">Theme:</label>
-                  <select
-                    id="theme-select"
-                    value={theme}
-                    onChange={(e) => handleThemeChange(e.target.value)}
-                  >
-                    <option value="light">Light</option>
-                    <option value="dark">Dark</option>
-                  </select>
-                </div>
-                <div className="setting-item">
-                  <label htmlFor="language-select">Language:</label>
-                  <select
-                    id="language-select"
-                    value={language}
-                    onChange={(e) => handleLanguageChange(e.target.value)}
-                  >
-                    <option value="en">English</option>
-                    <option value="fr">Français</option>
-                  </select>
-                </div>
-                <div className="setting-item">
-                  <h3>Test Audio and Video</h3>
-                  <button onClick={() => {/* Ajoutez ici la logique pour tester l'audio */ }}>
-                    Test Microphone
+              <div className="setting-item">
+                <div className="test-buttons">
+                  <button onClick={handleTestMicrophone}>
+                    {isTestingMic ? t('stopMicrophoneTest') : t('testMicrophone')}
                   </button>
-                  <button onClick={() => {/* Ajoutez ici la logique pour tester la vidéo */ }}>
-                    Test Camera
+                  <button onClick={handleTestCamera}>
+                    {isTestingVideo ? t('stopCameraTest') : t('testCamera')}
                   </button>
                 </div>
+                {isTestingMic && (
+                  <canvas ref={audioVisualizerRef} className="audio-visualizer"></canvas>
+                )}
+                {isTestingVideo && (
+                  <video ref={videoPreviewRef} className="video-preview" autoPlay playsInline></video>
+                )}
               </div>
             </div>
-          )}
-        </main>
-      </div>
-      {showProfile && (
-        <Profile
-          onClose={() => setShowProfile(false)}
-          profile={profile}
-          onUpdate={handleProfileUpdate}
-        />
-      )}
-      {isLoading && <LoadingSpinner />} {/* Ajoutez cette ligne */}
-
+          </div>
+        )}
+      </main>
     </div>
-  );
+    {showProfile && (
+      <Profile
+        onClose={() => setShowProfile(false)}
+        profile={profile}
+        onUpdate={handleProfileUpdate}
+        t={t}
+      />
+    )}
+    {isLoading && <LoadingSpinner />}
+  </div>
+);
 }
 
 export default App;

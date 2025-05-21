@@ -32,8 +32,12 @@
   border-radius: 50%;
   object-fit: cover;
   margin-right: 10px;
+  cursor: pointer; /* Indique que l'élément est cliquable */
+  transition: opacity 0.3s ease;
 }
-
+.profile-photo:hover {
+  opacity: 0.8; /* Assombrit légèrement l'image au survol */
+}
 .app-header h2 {
   margin: 0;
   font-size: 16px;
@@ -181,43 +185,194 @@
   color: #f0f0f0;
 }
 
-/* Styles pour les modales */
-.settings-modal,
-.profile-modal {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background-color: white;
+/* Styles pour la page de profil */
+.profile-page {
+  max-width: 600px;
+  margin: 0 auto;
   padding: 20px;
+  background-color: #fff;
   border-radius: 8px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  z-index: 1000;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
 }
 
-.settings-modal h2,
-.profile-modal h2 {
-  margin-top: 0;
+.profile-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
 }
 
-.settings-modal label,
-.profile-modal label {
+.profile-photo {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-right: 20px;
+}
+.profile-photo-container {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+}
+
+.profile-photo-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 10.8vh;
+  height: 10.8vh;
+  background-color: rgba(0, 0, 0, 0.5);
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  margin-left: 2.7%;
+  margin-top: 2.7%;
+
+}
+
+.profile-photo-container:hover .profile-photo-overlay {
+  opacity: 1;
+}
+
+.profile-photo-icon {
+  color: white;
+  font-size: 24px;
+}
+.profile-name {
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.profile-field {
+  margin-bottom: 15px;
+  position: relative;
+}
+
+.profile-field label {
   display: block;
-  margin-bottom: 10px;
+  font-weight: bold;
+  margin-bottom: 5px;
 }
 
-.settings-modal select,
-.profile-modal input[type="text"],
-.settings-modal input[type="email"],
-.profile-modal textarea {
+.profile-field input,
+.profile-field textarea {
   width: 100%;
   padding: 8px;
-  margin-bottom: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
 }
 
-.settings-modal button,
-.profile-modal button {
-  padding: 8px 15px;
-  margin-right: 10px;
+.edit-button {
+  position: absolute;
+  right: 5px;
+  top: 65%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
   cursor: pointer;
+  font-size: 18px;
+  color: #4CAF50;
+}
+
+.profile-actions {
+  margin-top: 20px;
+  text-align: right;
+}
+
+.profile-actions button {
+  padding: 10px 20px;
+  margin-left: 10px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.save-button {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.cancel-button {
+  background-color: #f44336;
+  color: white;
+}
+
+/* Styles pour la page de paramètres */
+.settings-page {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+.settings-section {
+  margin-bottom: 30px;
+}
+
+.settings-section h3 {
+  border-bottom: 2px solid #4CAF50;
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+  color: #4CAF50;
+}
+
+.setting-item {
+  margin-bottom: 20px;
+}
+
+.setting-item label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.setting-item select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+}
+
+.test-buttons {
+  display: flex;
+  gap: 15px;
+}
+
+.test-buttons button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  background-color: #2196F3;
+  color: white;
+  transition: background-color 0.3s ease;
+}
+
+.test-buttons button:hover {
+  background-color: #1976D2;
+}
+
+.audio-visualizer {
+  width: 100%;
+  height: 100px;
+  background-color: #f0f0f0;
+  margin-top: 15px;
+  border-radius: 4px;
+}
+
+.video-preview {
+  width: 100%;
+  max-height: 300px;
+  background-color: #f0f0f0;
+  margin-top: 15px;
+  border-radius: 4px;
+  object-fit: cover;
 }

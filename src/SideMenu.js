@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaHome, FaPhone, FaUser, FaCog, FaSync } from 'react-icons/fa';
+import { FaHome, FaPhone, FaUser, FaCog, FaSync, FaAddressBook } from 'react-icons/fa';
 import './SideMenu.css';
 
 function SideMenu({ onNavigate, currentPage, onRefresh }) {
@@ -18,6 +18,13 @@ function SideMenu({ onNavigate, currentPage, onRefresh }) {
         title="Call History"
       >
         <FaPhone />
+      </button>
+      <button 
+        className={`menu-item ${currentPage === 'contacts' ? 'active' : ''}`} 
+        onClick={() => onNavigate('contacts')}
+        title="Contacts"
+      >
+        <FaAddressBook />
       </button>
       <button 
         className={`menu-item ${currentPage === 'profile' ? 'active' : ''}`} 
