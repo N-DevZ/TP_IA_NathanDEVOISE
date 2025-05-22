@@ -13,7 +13,11 @@
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   width: 40vh;
 }
-
+.language-flag {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
 .login-form h2 {
   color: #ecf0f1;
   text-align: center;

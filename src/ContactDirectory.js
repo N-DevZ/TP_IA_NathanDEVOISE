@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './ContactDirectory.css';
+import callIcon from './assets/call.png';
 
-function ContactDirectory({ onCallContact, token }) {
+function ContactDirectory({ onCallContact, token, t }) {
   const [contacts, setContacts] = useState([]);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -9,7 +10,7 @@ function ContactDirectory({ onCallContact, token }) {
   useEffect(() => {
     const fetchContacts = async () => {
       if (!token) {
-        setError("Token non disponible. Veuillez vous reconnecter.");
+        setError(t("tokenUnavailable"));
         setIsLoading(false);
         return;
       }
@@ -22,44 +23,44 @@ function ContactDirectory({ onCallContact, token }) {
         });
 
         if (!response.ok) {
-          throw new Error(`Erreur HTTP: ${response.status}`);
+          throw new Error(`${t("httpError")}: ${response.status}`);
         }
 
         const data = await response.json();
 
         const formattedContacts = data.map((user, index) => ({
           id: user.id || index + 1,
-          name: `${user.prenom || ''} ${user.nom || ''}`.trim() || `Ext ${user.extension}`,
+          name: `${user.prenom || ''} ${user.nom || ''}`.trim() || `${t("ext")} ${user.extension}`,
           number: user.extension,
         }));
 
         setContacts(formattedContacts);
         setError(null);
       } catch (error) {
-        console.error('Erreur récupération contacts:', error);
-        setError("Impossible de charger les contacts. Veuillez réessayer plus tard.");
+        console.error(t("contactsFetchError"), error);
+        setError(t("contactsLoadError"));
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchContacts();
-  }, [token]);
+  }, [token, t]);
 
   if (error) {
     return <div className="contact-directory"><div className="error-message">{error}</div></div>;
   }
 
   if (isLoading) {
-    return <div className="contact-directory"><div className="loading-message">Chargement des contacts...</div></div>;
+    return <div className="contact-directory"><div className="loading-message">{t("loadingContacts")}</div></div>;
   }
 
   return (
     <div className="contact-directory">
-      <h2>Répertoire</h2>
+      <h2>{t("directory")}</h2>
       <div className="contact-list-container">
         {contacts.length === 0 ? (
-          <p>Aucun contact trouvé.</p>
+          <p>{t("noContactsFound")}</p>
         ) : (
           <ul className="contact-list">
             {contacts.map(contact => (
@@ -68,8 +69,9 @@ function ContactDirectory({ onCallContact, token }) {
                   <div className="contact-name">{contact.name}</div>
                   <div className="contact-number">{contact.number}</div>
                 </div>
-                <button className="call-button" onClick={() => onCallContact(contact.number)}>
-                  Appeler
+                <button className="call-button-contacts" onClick={() => onCallContact(contact.number)}>
+                                        <img src={callIcon} alt={t('voiceCall')} className="call-icon-contacts" />
+
                 </button>
               </li>
             ))}

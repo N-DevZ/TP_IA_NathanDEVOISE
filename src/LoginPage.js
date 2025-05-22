@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import './LoginPage.css';
 
-function LoginPage({ onLogin }) {
+function LoginPage({ onLogin, t }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
@@ -13,22 +13,22 @@ function LoginPage({ onLogin }) {
   return (
     <div className="login-container">
       <form className="login-form" onSubmit={handleSubmit}>
-        <h2>Welcome to MiloSIP</h2>
+        <h2>{t("welcomeToMiloSIP")}</h2>
         <input
           type="text"
-          placeholder="Username"
+          placeholder={t("username")}
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           required
         />
         <input
           type="password"
-          placeholder="Password"
+          placeholder={t("password")}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
         />
-        <button type="submit">Login</button>
+        <button type="submit">{t("login")}</button>
       </form>
     </div>
   );
