@@ -16,15 +16,15 @@ Ce projet est une application web interactive développée avec Streamlit pour a
 - **🤖 Modélisation ML** : Choix entre plusieurs algorithmes de classification.
 - **📊 Évaluation** : Métriques de performance et visualisations des résultats.
 - **🔮 Prédictions** : Interface pour prédire sur de nouvelles données.
-- **🚀 Bonus** : Lazy Predict, GridSearchCV, et modèle de Deep Learning.
+- **🚀 Bonus** : Fonctionnalités avancées de machine learning et deep learning.
 
 ## 🚀 Comment démarrer
 
 1. **Clonez le repository** :
 
     ```bash
-    git clone https://github.com/N-DevZ/TP_IA_NathanDEVOISE.git
-    cd TP_IA_NathanDEVOISE
+    git clone https://github.com/votre-username/votre-repo.git
+    cd votre-repo
     ```
 
 2. **Installez les dépendances** :
@@ -36,7 +36,7 @@ Ce projet est une application web interactive développée avec Streamlit pour a
 3. **Lancez l'application Streamlit** :
 
     ```bash
-    streamlit run script.py
+    streamlit run src/app.py
     ```
 
 ---
@@ -44,10 +44,23 @@ Ce projet est une application web interactive développée avec Streamlit pour a
 ## 🗂 Structure du projet
 
 ```plaintext
-TP_IA_NathanDEVOISE/
+votre-repo/
 │
-├── script.py           # Script principal Streamlit
-├── vin.csv             # Dataset des vins
-├── requirements.txt    # Fichier listant les dépendances Python
-├── wine_model.joblib   # Modèle ML sauvegardé (généré par l'application)
-└── README.md           # Fichier de documentation du projet
+├── src/
+│   ├── app.py              # Script principal Streamlit
+│   ├── data_loader.py      # Chargement des données
+│   ├── data_analysis.py    # Analyse exploratoire des données
+│   ├── preprocessing.py    # Prétraitement des données
+│   ├── machine_learning.py # Modélisation et prédictions
+│   ├── evaluation.py       # Évaluation des modèles
+│   ├── deep_learning.py    # Fonctionnalités de deep learning
+│   └── bonus.py            # Fonctionnalités bonus
+│
+├── data/
+│   └── vin.csv             # Dataset des vins
+│
+├── models/
+│   └── wine_model.joblib   # Modèle ML sauvegardé (généré par l'application)
+│
+├── requirements.txt        # Fichier listant les dépendances Python
+└── README.md               # Fichier de documentation du projet
