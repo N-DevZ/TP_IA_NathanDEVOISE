@@ -1,0 +1,49 @@
+
+                <!DOCTYPE html>
+                <html lang="fr">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Documentation - data_analysis</title>
+                    <link rel="stylesheet" href="style.css">
+                </head>
+                <body>
+                <h1>Module: data_analysis</h1>
+            <h2>Contenu du module</h2>
+<h3>Imports</h3>
+<ul>
+<li><code>import streamlit</code></li>
+<li><code>import seaborn</code></li>
+<li><code>import matplotlib.pyplot</code></li>
+</ul>
+<h3>FunctionDef: run_data_analysis</h3>
+<h4>Arguments</h4>
+<ul>
+<li><code>data</code></li>
+</ul>
+<h4>Contenu de la fonction</h4>
+<pre>
+st.title('Analyse des données')
+Si st.checkbox("Afficher l'analyse descriptive"):
+    st.write(data.describe())
+Si st.checkbox('Afficher les graphiques de distribution'):
+    column = st.selectbox('Choisissez une colonne', data.columns[:-1])
+    fig, ax = plt.subplots()
+    sns.histplot(data[column], ax=ax)
+    st.pyplot(fig)
+Si st.checkbox('Afficher la matrice de corrélation'):
+    fig, ax = plt.subplots(figsize=(10, 8))
+    columns_to_drop = ['target']
+    if 'target_encoded' in data.columns:
+    columns_to_drop.append('target_encoded')
+    correlation_matrix = data.drop(columns_to_drop, axis=1, errors='ignore').corr()
+    sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', ax=ax)
+    st.pyplot(fig)
+Si st.checkbox('Afficher le pairplot'):
+    fig = sns.pairplot(data.drop('target_encoded', axis=1, errors='ignore'), hue='target')
+    st.pyplot(fig)
+Si st.checkbox('Afficher les fréquences'):
+    column = st.selectbox('Choisissez une colonne pour les fréquences', data.columns[:-1])
+    st.write(data[column].value_counts())
+</pre>
+</body></html>

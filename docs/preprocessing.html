@@ -1,0 +1,46 @@
+
+                <!DOCTYPE html>
+                <html lang="fr">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Documentation - preprocessing</title>
+                    <link rel="stylesheet" href="style.css">
+                </head>
+                <body>
+                <h1>Module: preprocessing</h1>
+            <h2>Contenu du module</h2>
+<h3>Imports</h3>
+<ul>
+<li><code>import streamlit</code></li>
+<li><code>from sklearn.preprocessing import StandardScaler</code></li>
+<li><code>from sklearn.impute import SimpleImputer</code></li>
+<li><code>import pandas</code></li>
+</ul>
+<h3>FunctionDef: run_preprocessing</h3>
+<h4>Arguments</h4>
+<ul>
+<li><code>data</code></li>
+</ul>
+<h4>Contenu de la fonction</h4>
+<pre>
+st.title('Prétraitement des données')
+selected_columns = st.multiselect('Sélectionnez les colonnes à conserver', data.columns[:-2])
+Si selected_columns:
+    data_preprocessed = data[selected_columns + ['target_encoded']]
+Sinon:
+    data_preprocessed = data.drop('target', axis=1)
+Si st.checkbox('Gérer les valeurs manquantes'):
+    impute_method = st.selectbox("Choisissez la méthode d'imputation", ['mean', 'median', 'most_frequent'])
+    imputer = SimpleImputer(strategy=impute_method)
+    data_imputed = pd.DataFrame(imputer.fit_transform(data_preprocessed), columns=data_preprocessed.columns)
+    st.write(data_imputed)
+Si st.checkbox('Standardiser les données'):
+    scaler = StandardScaler()
+    data_scaled = pd.DataFrame(scaler.fit_transform(data_preprocessed.drop('target_encoded', axis=1)), columns=data_preprocessed.columns[:-1])
+    data_scaled['target_encoded'] = data_preprocessed['target_encoded']
+    st.write(data_scaled)
+    data_preprocessed = data_scaled
+return data_preprocessed
+</pre>
+</body></html>

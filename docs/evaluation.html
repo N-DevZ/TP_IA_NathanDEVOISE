@@ -1,0 +1,46 @@
+
+                <!DOCTYPE html>
+                <html lang="fr">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Documentation - evaluation</title>
+                    <link rel="stylesheet" href="style.css">
+                </head>
+                <body>
+                <h1>Module: evaluation</h1>
+            <h2>Contenu du module</h2>
+<h3>Imports</h3>
+<ul>
+<li><code>import streamlit</code></li>
+<li><code>from sklearn.metrics import accuracy_score, confusion_matrix, classification_report</code></li>
+<li><code>import matplotlib.pyplot</code></li>
+<li><code>import seaborn</code></li>
+</ul>
+<h3>FunctionDef: run_evaluation</h3>
+<h4>Arguments</h4>
+<ul>
+<li><code>model</code></li>
+<li><code>X_test</code></li>
+<li><code>y_test</code></li>
+<li><code>le</code></li>
+</ul>
+<h4>Contenu de la fonction</h4>
+<pre>
+st.title('Évaluation du modèle')
+Si model is not None:
+    y_pred = model.predict(X_test)
+    y_pred_labels = le.inverse_transform(y_pred)
+    y_test_labels = le.inverse_transform(y_test)
+    accuracy = accuracy_score(y_test, y_pred)
+    st.write(f'Précision : {accuracy:.2f}')
+    fig, ax = plt.subplots()
+    sns.heatmap(confusion_matrix(y_test_labels, y_pred_labels), annot=True, fmt='d', ax=ax)
+    plt.title('Matrice de confusion')
+    st.pyplot(fig)
+    st.write('Rapport de classification:')
+    st.text(classification_report(y_test_labels, y_pred_labels))
+Sinon:
+    st.warning("Veuillez d'abord entraîner un modèle dans la section Machine Learning.")
+</pre>
+</body></html>

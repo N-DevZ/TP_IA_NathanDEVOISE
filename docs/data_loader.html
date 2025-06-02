@@ -1,0 +1,36 @@
+
+                <!DOCTYPE html>
+                <html lang="fr">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Documentation - data_loader</title>
+                    <link rel="stylesheet" href="style.css">
+                </head>
+                <body>
+                <h1>Module: data_loader</h1>
+            <h2>Contenu du module</h2>
+<h3>Imports</h3>
+<ul>
+<li><code>import pandas</code></li>
+<li><code>import streamlit</code></li>
+<li><code>import os</code></li>
+<li><code>from sklearn.preprocessing import LabelEncoder</code></li>
+</ul>
+<h3>FunctionDef: load_data</h3>
+<h4>Arguments</h4>
+<ul>
+</ul>
+<h4>Contenu de la fonction</h4>
+<pre>
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(current_dir)
+data_path = os.path.join(project_root, 'data', 'vin.csv')
+Si not os.path.exists(data_path):
+    raise FileNotFoundError(f"Le fichier {data_path} n'existe pas.")
+data = pd.read_csv(data_path)
+le = LabelEncoder()
+data['target_encoded'] = le.fit_transform(data['target'])
+return data
+</pre>
+</body></html>

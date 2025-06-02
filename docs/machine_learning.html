@@ -1,0 +1,77 @@
+
+                <!DOCTYPE html>
+                <html lang="fr">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Documentation - machine_learning</title>
+                    <link rel="stylesheet" href="style.css">
+                </head>
+                <body>
+                <h1>Module: machine_learning</h1>
+            <h2>Contenu du module</h2>
+<h3>Imports</h3>
+<ul>
+<li><code>import streamlit</code></li>
+<li><code>from sklearn.model_selection import train_test_split</code></li>
+<li><code>from sklearn.linear_model import LogisticRegression</code></li>
+<li><code>from sklearn.tree import DecisionTreeClassifier</code></li>
+<li><code>from sklearn.ensemble import RandomForestClassifier</code></li>
+<li><code>import joblib</code></li>
+<li><code>import pandas</code></li>
+<li><code>import os</code></li>
+</ul>
+<h3>FunctionDef: run_machine_learning</h3>
+<h4>Arguments</h4>
+<ul>
+<li><code>data</code></li>
+<li><code>initial_features</code></li>
+<li><code>target</code></li>
+</ul>
+<h4>Contenu de la fonction</h4>
+<pre>
+st.title('Machine Learning')
+features = st.multiselect('Affiner la sélection des features', data.columns[:-2], default=initial_features, key='feature_selection_ml')
+Si features:
+    X = data[features]
+    y = data[target]
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    st.session_state['X_train'] = X_train
+    st.session_state['X_test'] = X_test
+    st.session_state['y_train'] = y_train
+    st.session_state['y_test'] = y_test
+    st.session_state['features'] = features
+    algorithm = st.selectbox('Choisissez un algorithme', ['Logistic Regression', 'Decision Tree', 'Random Forest'])
+    if algorithm == 'Logistic Regression':
+    model = LogisticRegression()
+elif algorithm == 'Decision Tree':
+    model = DecisionTreeClassifier()
+else:
+    model = RandomForestClassifier()
+    if st.button('Entraîner le modèle'):
+    model.fit(X_train, y_train)
+    st.session_state['model'] = model
+    st.success('Modèle entraîné avec succès!')
+    if st.button('Sauvegarder le modèle'):
+    if 'model' in st.session_state:
+        os.makedirs('models', exist_ok=True)
+        joblib.dump(st.session_state['model'], 'models/wine_model.joblib')
+        st.success('Modèle sauvegardé avec succès!')
+    else:
+        st.warning("Veuillez d'abord entraîner le modèle.")
+    if st.checkbox('Prédire sur de nouvelles données'):
+    if 'model' in st.session_state:
+        new_data = {}
+        for feature in features:
+            new_data[feature] = st.number_input(f'Entrez la valeur pour {feature}')
+        new_df = pd.DataFrame([new_data])
+        prediction = st.session_state['model'].predict(new_df)
+        st.write(f'Prédiction : {prediction[0]}')
+    else:
+        st.warning("Veuillez d'abord entraîner le modèle.")
+    return st.session_state.get('model')
+Sinon:
+    st.warning('Veuillez sélectionner au moins une feature pour continuer.')
+    return None
+</pre>
+</body></html>

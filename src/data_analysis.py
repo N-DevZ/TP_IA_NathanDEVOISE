@@ -1,6 +1,6 @@
 import streamlit as st
-import matplotlib.pyplot as plt
 import seaborn as sns
+import matplotlib.pyplot as plt
 
 
 def run_data_analysis(data):
@@ -20,17 +20,20 @@ def run_data_analysis(data):
     # Matrice de corrélation
     if st.checkbox("Afficher la matrice de corrélation"):
         fig, ax = plt.subplots(figsize=(10, 8))
-        sns.heatmap(
-            data.drop(["target", "target_encoded"], axis=1).corr(),
-            annot=True,
-            cmap="coolwarm",
-            ax=ax,
-        )
+        # Vérifiez si 'target_encoded' existe dans les colonnes
+        columns_to_drop = ["target"]
+        if "target_encoded" in data.columns:
+            columns_to_drop.append("target_encoded")
+
+        correlation_matrix = data.drop(columns_to_drop, axis=1, errors="ignore").corr()
+        sns.heatmap(correlation_matrix, annot=True, cmap="coolwarm", ax=ax)
         st.pyplot(fig)
 
     # Pairplot
     if st.checkbox("Afficher le pairplot"):
-        fig = sns.pairplot(data.drop("target_encoded", axis=1), hue="target")
+        fig = sns.pairplot(
+            data.drop("target_encoded", axis=1, errors="ignore"), hue="target"
+        )
         st.pyplot(fig)
 
     # Fréquences

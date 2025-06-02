@@ -1,0 +1,78 @@
+
+                <!DOCTYPE html>
+                <html lang="fr">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Documentation - main</title>
+                    <link rel="stylesheet" href="style.css">
+                </head>
+                <body>
+                <h1>Module: main</h1>
+            <h2>Contenu du module</h2>
+<h3>Imports</h3>
+<ul>
+<li><code>import streamlit</code></li>
+<li><code>import os</code></li>
+<li><code>from data_loader import load_data</code></li>
+<li><code>from data_analysis import run_data_analysis</code></li>
+<li><code>from preprocessing import run_preprocessing</code></li>
+<li><code>from machine_learning import run_machine_learning</code></li>
+<li><code>from deep_learning import run_deep_learning</code></li>
+<li><code>import webbrowser</code></li>
+</ul>
+<h3>FunctionDef: show_documentation</h3>
+<h4>Arguments</h4>
+<ul>
+</ul>
+<h4>Contenu de la fonction</h4>
+<pre>
+st.title('Documentation Technique')
+docs_dir = os.path.join(os.path.dirname(__file__), '..', 'docs')
+Si not os.path.exists(docs_dir):
+    st.warning("La documentation n'a pas encore été générée. Veuillez exécuter generate_docs.py d'abord.")
+    return
+index_path = os.path.join(docs_dir, 'index.html')
+Si os.path.exists(index_path):
+    webbrowser.open('file://' + os.path.realpath(index_path))
+    st.success('La documentation a été ouverte dans votre navigateur.')
+Sinon:
+    st.error("Le fichier index.html n'a pas été trouvé dans le dossier de documentation.")
+</pre>
+<h3>FunctionDef: main</h3>
+<h4>Arguments</h4>
+<ul>
+</ul>
+<h4>Contenu de la fonction</h4>
+<pre>
+data = load_data()
+st.sidebar.title('Navigation')
+page = st.sidebar.radio('Aller à', ['Accueil', 'Analyse des données', 'Prétraitement', 'Machine Learning', 'Évaluation', 'Bonus', 'Documentation'])
+Si page == 'Accueil':
+    st.title('Projet ML - Analyse de Vin')
+    st.markdown('\n        <a href="https://github.com/N-DevZ/TP_IA_NathanDEVOISE.git" target="_blank">\n            <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" width="50">\n        </a>\n        ', unsafe_allow_html=True)
+    st.write("Bienvenue dans mon application d'analyse de vin!")
+    st.dataframe(data.head())
+Sinon:
+    if page == 'Analyse des données':
+    run_data_analysis(data)
+elif page == 'Prétraitement':
+    run_preprocessing(data)
+elif page == 'Machine Learning':
+    features = st.multiselect('Sélectionnez les features', data.columns[:-2], key='feature_selection_main')
+    target = 'target_encoded'
+    if features:
+        run_machine_learning(data, features, target)
+    else:
+        st.warning('Veuillez sélectionner au moins une feature pour continuer.')
+elif page == 'Évaluation':
+    st.title('Évaluation')
+    st.write('Cette section est en cours de développement.')
+elif page == 'Bonus':
+    run_deep_learning(data)
+elif page == 'Documentation':
+    show_documentation()
+st.sidebar.markdown('---')
+st.sidebar.text('© 2023 Projet ML - Analyse de Vin')
+</pre>
+</body></html>
