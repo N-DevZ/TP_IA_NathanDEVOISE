@@ -23,20 +23,43 @@ Ce projet est une application web interactive développée avec Streamlit pour a
 1. **Clonez le repository** :
 
     ```bash
-    git clone https://github.com/votre-username/votre-repo.git
-    cd votre-repo
+    git clone https://github.com/N-DevZ/TP_IA_NathanDEVOISE.git
+    cd TP_IA_NathanDEVOISE
     ```
 
-2. **Installez les dépendances** :
+2. **Allez dans le dossier src** :
 
     ```bash
-    pip install -r requirements.txt
+    cd src
     ```
 
-3. **Lancez l'application Streamlit** :
+3. **Créez un environnement virtuel** :
 
     ```bash
-    streamlit run src/app.py
+    python -m venv venv
+    ```
+
+4. **Activez l'environnement virtuel** :
+
+    - Sur Windows :
+    ```bash
+    venv\Scripts\activate.bat
+    ```
+    - Sur macOS et Linux :
+    ```bash
+    source venv/bin/activate
+    ```
+
+5. **Installez les dépendances** :
+
+    ```bash
+    pip install -r ../requirements.txt
+    ```
+
+6. **Lancez l'application Streamlit** :
+
+    ```bash
+    streamlit run app.py
     ```
 
 ---
@@ -44,7 +67,7 @@ Ce projet est une application web interactive développée avec Streamlit pour a
 ## 🗂 Structure du projet
 
 ```plaintext
-votre-repo/
+TP_IA_NathanDEVOISE/
 │
 ├── src/
 │   ├── app.py              # Script principal Streamlit
