@@ -43,11 +43,11 @@ Ce projet est une application web interactive développée avec Streamlit pour a
 
 ## 🗂 Structure du projet
 
+```plaintext
 TP_IA_NathanDEVOISE/
 │
-├── script.py # Script principal Streamlit
-├── vin.csv # Dataset des vins
-├── requirements.txt # Fichier listant les dépendances Python
-├── wine_model.joblib # Modèle ML sauvegardé (généré par l'application)
-└── README.md # Fichier de documentation du projet
-
+├── script.py           # Script principal Streamlit
+├── vin.csv             # Dataset des vins
+├── requirements.txt    # Fichier listant les dépendances Python
+├── wine_model.joblib   # Modèle ML sauvegardé (généré par l'application)
+└── README.md           # Fichier de documentation du projet
