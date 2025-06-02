@@ -115,7 +115,7 @@ function App() {
 
   const generateToken = useCallback(async () => {
     try {
-      const response = await fetch('http://192.168.1.29:3000/auth/token', {
+      const response = await fetch('http://78.155.138.53:3000/auth/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -161,14 +161,14 @@ function App() {
     setUsername(extension);
 
     // Configuration SIP
-    const socket = new JsSIP.WebSocketInterface('ws://192.168.1.29:5066');
+    const socket = new JsSIP.WebSocketInterface('ws://78.155.138.53:5066');
     const configuration = {
       sockets: [socket],
-      uri: `sip:${extension}@192.168.1.29:5070`,
+      uri: `sip:${extension}@78.155.138.53:5070`,
       password: password,
       sessionTimersExpires: 600,
       register: true,
-      registrar_server: 'sip:192.168.1.29',
+      registrar_server: 'sip:78.155.138.53',
       pcConfig: {
         iceServers: [
           { urls: ['stun:stun.freeswitch.org'] },
@@ -187,7 +187,7 @@ function App() {
     const ua = new JsSIP.UA(configuration);
     setInterval(() => {
       if (ua.isRegistered()) {
-        ua.sendOptions(`sip:${extension}@192.168.1.29:5070`);
+        ua.sendOptions(`sip:${extension}@78.155.138.53:5070`);
       }
     }, 30000);
     // Gestion des événements de l'agent utilisateur
@@ -370,8 +370,8 @@ function App() {
         sessionTimersExpires: 600
       };
 
-      console.log('Initiating call to:', `sip:${callTo}@192.168.1.29:5070`);
-      const newSession = userAgent.call(`sip:${callTo}@192.168.1.29:5070`, options);
+      console.log('Initiating call to:', `sip:${callTo}@78.155.138.53:5070`);
+      const newSession = userAgent.call(`sip:${callTo}@78.155.138.53:5070`, options);
       setSession(newSession);
       setCallStatus('Calling...');
       setIsVideoEnabled(withVideo);
@@ -567,7 +567,7 @@ function App() {
   const fetchCallHistory = useCallback(async () => {
     if (token && username) {
       try {
-        const response = await fetch(`http://192.168.1.29:3000/cdr/${username}`, {
+        const response = await fetch(`http://78.155.138.53:3000/cdr/${username}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
@@ -659,7 +659,7 @@ function App() {
             : utcNow;
 
           const cdrData = {
-            local_ip_v4: '192.168.1.29', // Remplacez par l'IP réelle
+            local_ip_v4: '78.155.138.53', // Remplacez par l'IP réelle
             caller_id_name: session.remote_identity?.display_name || '',
             caller_id_number: session.remote_identity?.uri?.user || '',
             destination_number: session.local_identity?.uri?.user || '',
@@ -679,7 +679,7 @@ function App() {
             ani: session.local_identity?.uri?.user || '',
           };
 
-          const response = await fetch('http://192.168.1.29:3000/cdr', {
+          const response = await fetch('http://78.155.138.53:3000/cdr', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
