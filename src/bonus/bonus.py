@@ -9,10 +9,21 @@ from torch.utils.data import TensorDataset, DataLoader
 from configparser import ConfigParser
 import os
 
+# Configuration du chemin et chargement du fichier de configuration
 config = ConfigParser()
-config.read(
-    os.path.join(os.path.dirname(__file__), "..", "Strings.ini"), encoding="utf-8"
-)
+config_path = os.path.join(os.path.dirname(__file__), "..", "conf", "Strings.ini")
+print(f"Chemin du fichier de configuration : {config_path}")  # Débogage
+
+if not os.path.exists(config_path):
+    raise FileNotFoundError(f"Le fichier de configuration n'existe pas : {config_path}")
+
+config.read(config_path, encoding="utf-8")
+
+print(f"Sections disponibles : {config.sections()}")  # Débogage
+
+if "bonus" not in config.sections():
+    raise KeyError("La section 'bonus' n'existe pas dans le fichier de configuration")
+
 strings = config["bonus"]
 
 
@@ -76,3 +87,9 @@ def run_deep_learning(X_train, y_train, features):
 
     st.line_chart(loss_history)
     st.success(strings["deep_learning_trained"])
+
+
+if __name__ == "__main__":
+    print("Test de chargement des chaînes :")
+    for key in strings:
+        print(f"{key}: {strings[key]}")

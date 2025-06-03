@@ -2,10 +2,19 @@ import pandas as pd
 import os
 from configparser import ConfigParser
 
-config = ConfigParser()
-config.read(
-    os.path.join(os.path.dirname(__file__), "..", "Strings.ini"), encoding="utf-8"
+# Chemin absolu vers le fichier Strings.ini
+strings_ini_path = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "src", "conf", "Strings.ini")
 )
+
+config = ConfigParser()
+config.read(strings_ini_path, encoding="utf-8")
+
+if "data_loader" not in config:
+    raise KeyError(
+        f"La section 'data_loader' n'existe pas dans le fichier {strings_ini_path}"
+    )
+
 strings = config["data_loader"]
 
 

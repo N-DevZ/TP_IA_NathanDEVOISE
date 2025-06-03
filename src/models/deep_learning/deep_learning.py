@@ -8,9 +8,24 @@ import os
 
 config = ConfigParser()
 config.read(
-    os.path.join(os.path.dirname(__file__), "..", "Strings.ini"), encoding="utf-8"
+    os.path.join(os.path.dirname(__file__), "..", "..", "Strings.ini"), encoding="utf-8"
 )
-strings = config["deep_learning"]
+
+# Vérifiez si la section "deep_learning" existe, sinon utilisez une section par défaut
+if "deep_learning" in config:
+    strings = config["deep_learning"]
+else:
+    # Utilisez un dictionnaire de chaînes par défaut
+    strings = {
+        "deep_learning_title": "Deep Learning avec PyTorch",
+        "target": "target",
+        "target_encoded": "target_encoded",
+        "train_deep_learning": "Entraîner le modèle de Deep Learning",
+        "epoch_progress": "Époque {epoch}/{epochs}, Perte: {loss:.4f}",
+        "training_complete": "Entraînement terminé !",
+        "evaluate_model": "Évaluer le modèle",
+        "model_accuracy": "Précision du modèle: {accuracy:.2f}%",
+    }
 
 
 def run_deep_learning(data):

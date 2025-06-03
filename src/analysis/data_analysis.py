@@ -1,42 +1,51 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
 import seaborn as sns
+import matplotlib.pyplot as plt
 from configparser import ConfigParser
 import os
 
+# Charger les chaînes de caractères depuis Strings.ini
 config = ConfigParser()
 config.read(
-    os.path.join(os.path.dirname(__file__), "..", "Strings.ini"), encoding="utf-8"
+    os.path.join(os.path.dirname(__file__), "..", "conf", "Strings.ini"),
+    encoding="utf-8",
 )
+
+if "data_analysis" not in config:
+    raise KeyError(
+        f"La section 'data_analysis' n'existe pas dans le fichier Strings.ini"
+    )
+
 strings = config["data_analysis"]
 
 
 def run_data_analysis(data):
-    st.title("Analyse des données")
+    st.title(strings["data_analysis_title"])
 
-    st.write(f"Forme des données : {data.shape[0]} lignes et {data.shape[1]} colonnes")
+    if st.checkbox(strings["show_description"]):
+        st.write(data.describe())
 
-    st.subheader("Informations sur les données")
-    st.write(data.info())
+    if st.checkbox(strings["show_correlation"]):
+        corr = data.corr()
+        fig, ax = plt.subplots(figsize=(10, 8))
+        sns.heatmap(corr, annot=True, cmap=strings["colormap"], ax=ax)
+        st.pyplot(fig)
 
-    st.subheader("Description des données")
-    st.write(data.describe())
+    if st.checkbox(strings["show_pairplot"]):
+        fig = sns.pairplot(data, hue=strings["target"])
+        st.pyplot(fig)
 
-    st.subheader("Matrice de corrélation")
-    corr = data.corr()
-    fig, ax = plt.subplots(figsize=(10, 8))
-    sns.heatmap(corr, annot=True, cmap="coolwarm", ax=ax)
-    st.pyplot(fig)
+    if st.checkbox(strings["show_distribution"]):
+        column = st.selectbox(strings["select_column"], data.columns)
+        fig, ax = plt.subplots()
+        sns.histplot(data=data, x=column, hue=strings["target"], kde=True, ax=ax)
+        st.pyplot(fig)
 
-    st.subheader("Graphiques de distribution")
-    for column in data.columns:
-        if data[column].dtype != "object":
-            fig, ax = plt.subplots()
-            sns.histplot(data[column], kde=True, ax=ax)
-            plt.title(f"Distribution de {column}")
-            st.pyplot(fig)
+    if st.checkbox(strings["show_frequencies"]):
+        column = st.selectbox(strings["select_frequency_column"], data.columns)
+        st.write(data[column].value_counts())
 
-    st.subheader("Pairplot")
-    fig = sns.pairplot(data, hue="target")
-    st.pyplot(fig)
+
+# Assurez-vous que cette ligne est présente à la fin du fichier
+__all__ = ["run_data_analysis"]

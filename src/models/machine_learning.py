@@ -12,7 +12,10 @@ from configparser import ConfigParser
 
 config = ConfigParser()
 config.read(
-    os.path.join(os.path.dirname(__file__), "..", "Strings.ini"), encoding="utf-8"
+    config.read(
+        os.path.join(os.path.dirname(__file__), "..", "conf", "Strings.ini"),
+        encoding="utf-8",
+    )
 )
 strings = config["machine_learning"]
 
