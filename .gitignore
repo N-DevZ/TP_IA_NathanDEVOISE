@@ -3,7 +3,7 @@ __pycache__
 extract_strings.sh
 Projet_ML.pdf
 dist/*
-.venv/*
+/.venv/
 app.ps1
 desktop_app.py
 desktop_app.spec
@@ -16,4 +16,5 @@ Wine_Analyzer.lnk
 Wine_Analyzer.spec
 Wine_Analyzer.
 .streamlit/*
+build/*
 
