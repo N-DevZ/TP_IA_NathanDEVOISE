@@ -451,3 +451,49 @@
   border-radius: 4px;
   object-fit: cover;
 }
+
+#transfer-button {
+  background-color: #2d0055;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-size: 8px;
+  margin-right: 10px;
+}
+
+.transfer-button:hover {
+  background-color: #2d0055;
+}
+
+/* Styles pour le mode de transfert dans le répertoire de contacts */
+.contact-directory.transfer-mode .call-button-contacts,
+.contact-directory.transfer-mode .video-call-button-contacts {
+  display: none;
+}
+
+.contact-directory.transfer-mode .transfer-contact-button {
+  display: block;
+  background-color: #2d0055;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  margin-left: 10px;
+}
+
+.contact-directory.transfer-mode .transfer-contact-button:hover {
+  background-color: #2d0055;
+}
+
+/* Ajustement de la mise en page pour le mode de transfert */
+.contact-directory.transfer-mode .contact-item {
+  justify-content: space-between;
+}
+
+.contact-directory.transfer-mode .contact-actions {
+  display: flex;
+  align-items: center;
+}

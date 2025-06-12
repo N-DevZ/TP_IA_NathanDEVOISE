@@ -57,6 +57,7 @@ function App() {
   const [theme, setTheme] = useState('light');
   const [language, setLanguage] = useState('en');
   const availableLanguages = ['en', 'fr', 'es', 'de', 'it', 'pt', 'nl', 'ru', 'ja', 'ko', 'ar', 'zh', 'uk', 'pl', 'tr', 'vi', 'ro', 'sv', 'no', 'fi', 'el', 'hu', 'sr', 'id', 'ur', 'hr', 'is', 'et', 'lt', 'be', 'af'];
+  const [isTransferMode, setIsTransferMode] = useState(false);
 
   const [token, setToken] = useState(null);
   const [isTestingMic, setIsTestingMic] = useState(false);
@@ -115,7 +116,7 @@ function App() {
 
   const generateToken = useCallback(async () => {
     try {
-      const response = await fetch('http://78.155.138.53:3000/auth/token', {
+      const response = await fetch('http://192.168.1.34:3000/auth/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -161,14 +162,14 @@ function App() {
     setUsername(extension);
 
     // Configuration SIP
-    const socket = new JsSIP.WebSocketInterface('ws://78.155.138.53:5066');
+    const socket = new JsSIP.WebSocketInterface('ws://192.168.1.34:5066');
     const configuration = {
       sockets: [socket],
-      uri: `sip:${extension}@78.155.138.53:5070`,
+      uri: `sip:${extension}@192.168.1.34:5070`,
       password: password,
       sessionTimersExpires: 600,
       register: true,
-      registrar_server: 'sip:78.155.138.53',
+      registrar_server: 'sip:192.168.1.34',
       pcConfig: {
         iceServers: [
           { urls: ['stun:stun.freeswitch.org'] },
@@ -187,7 +188,7 @@ function App() {
     const ua = new JsSIP.UA(configuration);
     setInterval(() => {
       if (ua.isRegistered()) {
-        ua.sendOptions(`sip:${extension}@78.155.138.53:5070`);
+        ua.sendOptions(`sip:${extension}@192.168.1.34:5070`);
       }
     }, 30000);
     // Gestion des événements de l'agent utilisateur
@@ -370,8 +371,8 @@ function App() {
         sessionTimersExpires: 600
       };
 
-      console.log('Initiating call to:', `sip:${callTo}@78.155.138.53:5070`);
-      const newSession = userAgent.call(`sip:${callTo}@78.155.138.53:5070`, options);
+      console.log('Initiating call to:', `sip:${callTo}@192.168.1.34:5070`);
+      const newSession = userAgent.call(`sip:${callTo}@192.168.1.34:5070`, options);
       setSession(newSession);
       setCallStatus('Calling...');
       setIsVideoEnabled(withVideo);
@@ -522,6 +523,17 @@ function App() {
   useEffect(() => {
     getDevices();
   }, [getDevices]);
+
+  const handleCallContact = useCallback((number) => {
+    setCallTo(number);
+    handleCall(false);  // false pour un appel audio
+    setCurrentPage('home');
+  }, [setCallTo, handleCall]);
+
+  const handleVideoCallContact = useCallback((number) => {
+    setCallTo(number);
+    handleCall(true);  // true pour un appel vidéo
+  }, [setCallTo, handleCall]);
   // Fonction pour répondre à un appel entrant
   const handleAnswer = useCallback(async () => {
     if (incomingCall) {
@@ -567,7 +579,7 @@ function App() {
   const fetchCallHistory = useCallback(async () => {
     if (token && username) {
       try {
-        const response = await fetch(`http://78.155.138.53:3000/cdr/${username}`, {
+        const response = await fetch(`http://192.168.1.34:3000/cdr/${username}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
@@ -659,7 +671,7 @@ function App() {
             : utcNow;
 
           const cdrData = {
-            local_ip_v4: '78.155.138.53', // Remplacez par l'IP réelle
+            local_ip_v4: '192.168.1.34', // Remplacez par l'IP réelle
             caller_id_name: session.remote_identity?.display_name || '',
             caller_id_number: session.remote_identity?.uri?.user || '',
             destination_number: session.local_identity?.uri?.user || '',
@@ -679,7 +691,7 @@ function App() {
             ani: session.local_identity?.uri?.user || '',
           };
 
-          const response = await fetch('http://78.155.138.53:3000/cdr', {
+          const response = await fetch('http://192.168.1.34:3000/cdr', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -762,314 +774,330 @@ function App() {
     return <LoginPage onLogin={handleLogin} t={t} />;
   }
 
+  const handleTransferClick = () => {
+    setIsTransferMode(true);
+    setCurrentPage('contacts');
+  };
 
+  const handleTransferToContact = (contactNumber) => {
+    // Logique pour transférer l'appel au contact sélectionné
+    console.log(`Transferring call to ${contactNumber}`);
+    setIsTransferMode(false);
+    // Ajoutez ici la logique pour effectuer le transfert d'appel
+  };
   // Rendu de l'interface utilisateur principale
   return (
     <div className={`app-container ${theme}`}>
       <CustomTitleBar />
-      <div className="app-content">
-        <SideMenu
-          onNavigate={setCurrentPage}
-          currentPage={currentPage}
-          onRefresh={handleRefresh}
-          t={t}
-        />
-        <main className="app-main">
-          {currentPage === 'home' && (
-            <>
-              
-              <header className="app-header">
-                <img
-                  src={profile.photo || defaultPhoto}
-                  alt=""
-                  id="profile-photo"
-                  onClick={handleProfilePhotoClick}
-                  style={{ cursor: 'pointer' }}
-                />
-                <h2>
-                  {profile.name || username}
-                  {connectionFailed && (
-                    <span
-                      className="connection-warning"
-                      title={t('connectionFailedWarning')}
-                    >
-                      ⚠️
-                    </span>
-                  )}
-                </h2>
-                <button className="logout-button" onClick={handleLogout}>{t('logout')}</button>
-              </header>
-              <div className="call-status">
-                <p>{t('callStatus')}: {t(callStatus)}</p>
-              </div>
-              <div className="keypad">
-                <input
-                  type="text"
-                  value={callTo}
-                  onChange={(e) => setCallTo(e.target.value)}
-                  placeholder={t('enterNumber')}
-                  className="call-input"
-                />
-                <div className="keypad-buttons">
-                  {keypadButtons.map((button) => (
-                    <button
-                      key={button.key}
-                      onClick={() => handleKeyPress(button.key)}
-                      className="keypad-button"
-                    >
-                      {button.key}
-                      <small>{button.letters}</small>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="call-controls">
-                {!session && !incomingCall && (
-                  <>
-                    <button className="call-button" onClick={() => handleCall(false)} title={t('voiceCall')}>
-                      <img src={callIcon} alt={t('voiceCall')} className="call-icon" />
-                    </button>
-                    <button className="video-call-button" onClick={() => handleCall(true)} title={t('videoCall')}>
-                      <img src={videocallicon} alt={t('videoCall')} className="video-call-icon" />
-                    </button>
-                  </>
-                )}
-                {incomingCall && (
-                  <>
-                    <button className="answer-button" onClick={handleAnswer}>{t('answer')}</button>
-                    <button className="reject-button" onClick={handleReject}>{t('reject')}</button>
-                  </>
-                )}
-                {session && (
-                  <>
-                    <button className="hangup-button" onClick={handleHangup} title={t('hangUp')}>
-                      <img src={hangupicon} alt={t('hangUp')} className="hangup-icon" />
-                    </button>
-                    <button
-                      className={`toggle-video-button ${isVideoEnabled ? 'active' : ''}`}
-                      onClick={toggleVideo}
-                      title={isVideoEnabled ? t('disableVideo') : t('enableVideo')}
-                    >
-                      <img
-                        src={isVideoEnabled ? disablevideoicon : enablevideoicon}
-                        alt={t('toggleVideo')}
-                        className="control-icon"
-                      />
-                    </button>
-                    <button
-                      className={`toggle-audio-button ${isAudioEnabled ? 'active' : ''}`}
-                      onClick={toggleAudio}
-                      title={isAudioEnabled ? t('muteAudio') : t('unmuteAudio')}
-                    >
-                      <img
-                        src={isAudioEnabled ? enablemicroicon : disablemicroicon}
-                        alt={t('toggleAudio')}
-                        className="control-icon"
-                      />
-                    </button>
-                  </>
-                )}
-              </div>
-              <div className="video-container">
-                {isVideoEnabled && (
-                  <>
-                    <div className="video-box">
-                      <h3>{t('localVideo')}</h3>
-                      <video ref={localVideoRef} autoPlay muted></video>
-                    </div>
-                    <div className="video-box">
-                      <h3>{t('remoteVideo')}</h3>
-                      <video ref={remoteVideoRef} autoPlay></video>
-                    </div>
-                  </>
-                )}
-              </div>
-            </>
-          )}
-          {currentPage === 'callHistory' && (
-            <CallHistory history={callHistory} username={username} t={t} />
-          )}
-          {currentPage === 'contacts' && (
-            <ContactDirectory
-              onCallContact={(number) => {
-                setCallTo(number);
-                setCurrentPage('home');
-              }}
-              token={token}
-              t={t}
-            />
-          )}
-          {currentPage === 'profile' && (
-            <div className="profile-page">
-              <div className="profile-header">
-                <input
-                  type="file"
-                  id="photo-upload"
-                  accept="image/*"
-                  style={{ display: 'none' }}
-                  onChange={handlePhotoChange}
-                />
-                <div
-                  className="profile-photo-container"
-                  onClick={() => document.getElementById('photo-upload').click()}
-                  title={t('changeProfilePicture')}
-                >
+      {!isLoggedIn ? (
+        <LoginPage onLogin={handleLogin} t={t} />
+      ) : (
+        <div className="app-content">
+          <SideMenu
+            onNavigate={setCurrentPage}
+            currentPage={currentPage}
+            onRefresh={handleRefresh}
+            t={t}
+          />
+          <main className="app-main">
+            {currentPage === 'home' && (
+              <>
+
+                <header className="app-header">
                   <img
                     src={profile.photo || defaultPhoto}
-                    alt={t('profilePicture')}
-                    className="profile-photo"
+                    alt=""
+                    id="profile-photo"
+                    onClick={handleProfilePhotoClick}
+                    style={{ cursor: 'pointer' }}
                   />
-                  <div className="profile-photo-overlay">
-                    <span className="profile-photo-icon">📷</span>
+                  <h2>
+                    {profile.name || username}
+                    {connectionFailed && (
+                      <span
+                        className="connection-warning"
+                        title={t('connectionFailedWarning')}
+                      >
+                        ⚠️
+                      </span>
+                    )}
+                  </h2>
+                  <button className="logout-button" onClick={handleLogout}>{t('logout')}</button>
+                </header>
+                <div className="call-status">
+                  <p>{t('callStatus')}: {t(callStatus)}</p>
+                </div>
+                <div className="keypad">
+                  <input
+                    type="text"
+                    value={callTo}
+                    onChange={(e) => setCallTo(e.target.value)}
+                    placeholder={t('enterNumber')}
+                    className="call-input"
+                  />
+                  <div className="keypad-buttons">
+                    {keypadButtons.map((button) => (
+                      <button
+                        key={button.key}
+                        onClick={() => handleKeyPress(button.key)}
+                        className="keypad-button"
+                      >
+                        {button.key}
+                        <small>{button.letters}</small>
+                      </button>
+                    ))}
                   </div>
                 </div>
-                <h2 className="profile-name">{profile.name || username}</h2>
-              </div>
-
-              <div className="profile-field">
-                <label>{t('name')}</label>
-                <input
-                  type="text"
-                  value={isEditing ? editedProfile.name : profile.name}
-                  readOnly={!isEditing}
-                  onChange={(e) => handleInputChange('name', e.target.value)}
-                />
-                {!isEditing && <button className="edit-button" onClick={() => handleEdit('name')}>✏️</button>}
-              </div>
-
-              <div className="profile-field">
-                <label>{t('email')}</label>
-                <input
-                  type="email"
-                  value={isEditing ? editedProfile.email : profile.email}
-                  readOnly={!isEditing}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                />
-                {!isEditing && <button className="edit-button" onClick={() => handleEdit('email')}>✏️</button>}
-              </div>
-
-              <div className="profile-field">
-                <label>{t('bio')}</label>
-                <textarea
-                  value={isEditing ? editedProfile.bio : profile.bio}
-                  readOnly={!isEditing}
-                  onChange={(e) => handleInputChange('bio', e.target.value)}
-                ></textarea>
-                {!isEditing && <button className="edit-button" onClick={() => handleEdit('bio')}>✏️</button>}
-              </div>
-
-              {isEditing && (
-                <div className="profile-actions">
-                  <button className="cancel-button" onClick={handleCancel}>{t('cancel')}</button>
-                  <button className="save-button" onClick={handleSave}>{t('save')}</button>
+                <div className="call-controls">
+                  {!session && !incomingCall && (
+                    <>
+                      <button className="call-button" onClick={() => handleCall(false)} title={t('voiceCall')}>
+                        <img src={callIcon} alt={t('voiceCall')} className="call-icon" />
+                      </button>
+                      <button className="video-call-button" onClick={() => handleCall(true)} title={t('videoCall')}>
+                        <img src={videocallicon} alt={t('videoCall')} className="video-call-icon" />
+                      </button>
+                    </>
+                  )}
+                  {incomingCall && (
+                    <>
+                      <button className="answer-button" onClick={handleAnswer}>{t('answer')}</button>
+                      <button className="reject-button" onClick={handleReject}>{t('reject')}</button>
+                    </>
+                  )}
+                  {session && (
+                    <>
+                      <button className="hangup-button" onClick={handleHangup} title={t('hangUp')}>
+                        <img src={hangupicon} alt={t('hangUp')} className="hangup-icon" />
+                      </button>
+                      <button
+                        className={`toggle-video-button ${isVideoEnabled ? 'active' : ''}`}
+                        onClick={toggleVideo}
+                        title={isVideoEnabled ? t('disableVideo') : t('enableVideo')}
+                      >
+                        <img
+                          src={isVideoEnabled ? disablevideoicon : enablevideoicon}
+                          alt={t('toggleVideo')}
+                          className="control-icon"
+                        />
+                      </button>
+                      <button
+                        className={`toggle-audio-button ${isAudioEnabled ? 'active' : ''}`}
+                        onClick={toggleAudio}
+                        title={isAudioEnabled ? t('muteAudio') : t('unmuteAudio')}
+                      >
+                        <img
+                          src={isAudioEnabled ? enablemicroicon : disablemicroicon}
+                          alt={t('toggleAudio')}
+                          className="control-icon"
+                        />
+                      </button>
+                      <button id="transfer-button" onClick={handleTransferClick}>
+                        {t('transfer')}
+                      </button>
+                    </>
+                  )}
                 </div>
-              )}
-            </div>
-          )}
-          {currentPage === 'settings' && (
-            <div className="settings-page">
-              <h2>{t('settings')}</h2>
-              <div className="settings-section">
-                <h3>{t('appearance')}</h3>
-                <div className="setting-item">
-                  <label htmlFor="theme-select">{t('theme')}:</label>
-                  <select
-                    id="theme-select"
-                    value={theme}
-                    onChange={(e) => handleThemeChange(e.target.value)}
+                <div className="video-container">
+                  {isVideoEnabled && (
+                    <>
+                      <div className="video-box">
+                        <h3>{t('localVideo')}</h3>
+                        <video ref={localVideoRef} autoPlay muted></video>
+                      </div>
+                      <div className="video-box">
+                        <h3>{t('remoteVideo')}</h3>
+                        <video ref={remoteVideoRef} autoPlay></video>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </>
+            )}
+            {currentPage === 'callHistory' && (
+              <CallHistory history={callHistory} username={username} t={t} />
+            )}
+            {currentPage === 'contacts' && (
+              <ContactDirectory
+                isTransferMode={isTransferMode}
+                onTransfer={handleTransferToContact}
+                onCallContact={handleCallContact}
+                onVideoCallContact={handleVideoCallContact}
+                token={token}
+                t={t}
+              />
+            )}
+            {currentPage === 'profile' && (
+              <div className="profile-page">
+                <div className="profile-header">
+                  <input
+                    type="file"
+                    id="photo-upload"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={handlePhotoChange}
+                  />
+                  <div
+                    className="profile-photo-container"
+                    onClick={() => document.getElementById('photo-upload').click()}
+                    title={t('changeProfilePicture')}
                   >
-                    <option value="light">{t('light')}</option>
-                    <option value="dark">{t('dark')}</option>
-                  </select>
-                </div>
-                <div className="setting-item">
-                  <label htmlFor="language-select">{t('language')}:</label>
-                  <select value={language} onChange={(e) => handleLanguageChange(e.target.value)}>
-                    <option value="en">English</option>
-                    <option value="fr">Français</option>
-                    <option value="es">Español</option>
-                    <option value="de">Deutsch</option>
-                    <option value="it">Italiano</option>
-                    <option value="pt">Português</option>
-                    <option value="nl">Nederlands</option>
-                    <option value="ru">Русский</option>
-                    <option value="ja">日本語</option>
-                    <option value="ko">한국어</option>
-                    <option value="ar">العربية</option>
-                    <option value="zh">中文</option>
-                    <option value="uk">Українська</option>
-                    <option value="pl">Polski</option>
-                    <option value="tr">Türkçe</option>
-                    <option value="vi">Tiếng Việt</option>
-                    <option value="ro">Română</option>
-                    <option value="sv">Svenska</option>
-                    <option value="no">Norsk</option>
-                    <option value="fi">Suomi</option>
-                    <option value="el">Ελληνικά</option>
-                    <option value="hu">Magyar</option>
-                    <option value="sr">Српски</option>
-                    <option value="id">Bahasa Indonesia</option>
-                    <option value="ur">اردو</option>
-                    <option value="hr">Hrvatski</option>
-                    <option value="is">Íslenska</option>
-                    <option value="et">Eesti</option>
-                    <option value="lt">Lietuvių</option>
-                    <option value="be">Беларуская</option>
-                    <option value="af">Afrikaans</option>
-                  </select>
-                </div>
-              </div>
-              <div className="settings-section">
-                <h3>{t('audioAndVideo')}</h3>
-                <div className="setting-item">
-                  <label htmlFor="audio-device-select">{t('audioInputDevice')}:</label>
-                  <select
-                    id="audio-device-select"
-                    value={selectedAudioDevice}
-                    onChange={(e) => setSelectedAudioDevice(e.target.value)}
-                  >
-                    {audioDevices.map((device) => (
-                      <option key={device.deviceId} value={device.deviceId}>
-                        {device.label || `${t('microphone')} ${audioDevices.indexOf(device) + 1}`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="setting-item">
-                  <label htmlFor="video-device-select">{t('videoInputDevice')}:</label>
-                  <select
-                    id="video-device-select"
-                    value={selectedVideoDevice}
-                    onChange={(e) => setSelectedVideoDevice(e.target.value)}
-                  >
-                    {videoDevices.map((device) => (
-                      <option key={device.deviceId} value={device.deviceId}>
-                        {device.label || `${t('camera')} ${videoDevices.indexOf(device) + 1}`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="setting-item">
-                  <div className="test-buttons">
-                    <button onClick={handleTestMicrophone}>
-                      {isTestingMic ? t('stopMicrophoneTest') : t('testMicrophone')}
-                    </button>
-                    <button onClick={handleTestCamera}>
-                      {isTestingVideo ? t('stopCameraTest') : t('testCamera')}
-                    </button>
+                    <img
+                      src={profile.photo || defaultPhoto}
+                      alt={t('profilePicture')}
+                      className="profile-photo"
+                    />
+                    <div className="profile-photo-overlay">
+                      <span className="profile-photo-icon">📷</span>
+                    </div>
                   </div>
-                  {isTestingMic && (
-                    <canvas ref={audioVisualizerRef} className="audio-visualizer"></canvas>
-                  )}
-                  {isTestingVideo && (
-                    <video ref={videoPreviewRef} className="video-preview" autoPlay playsInline></video>
-                  )}
+                  <h2 className="profile-name">{profile.name || username}</h2>
+                </div>
+
+                <div className="profile-field">
+                  <label>{t('name')}</label>
+                  <input
+                    type="text"
+                    value={isEditing ? editedProfile.name : profile.name}
+                    readOnly={!isEditing}
+                    onChange={(e) => handleInputChange('name', e.target.value)}
+                  />
+                  {!isEditing && <button className="edit-button" onClick={() => handleEdit('name')}>✏️</button>}
+                </div>
+
+                <div className="profile-field">
+                  <label>{t('email')}</label>
+                  <input
+                    type="email"
+                    value={isEditing ? editedProfile.email : profile.email}
+                    readOnly={!isEditing}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                  />
+                  {!isEditing && <button className="edit-button" onClick={() => handleEdit('email')}>✏️</button>}
+                </div>
+
+                <div className="profile-field">
+                  <label>{t('bio')}</label>
+                  <textarea
+                    value={isEditing ? editedProfile.bio : profile.bio}
+                    readOnly={!isEditing}
+                    onChange={(e) => handleInputChange('bio', e.target.value)}
+                  ></textarea>
+                  {!isEditing && <button className="edit-button" onClick={() => handleEdit('bio')}>✏️</button>}
+                </div>
+
+                {isEditing && (
+                  <div className="profile-actions">
+                    <button className="cancel-button" onClick={handleCancel}>{t('cancel')}</button>
+                    <button className="save-button" onClick={handleSave}>{t('save')}</button>
+                  </div>
+                )}
+              </div>
+            )}
+            {currentPage === 'settings' && (
+              <div className="settings-page">
+                <h2>{t('settings')}</h2>
+                <div className="settings-section">
+                  <h3>{t('appearance')}</h3>
+                  <div className="setting-item">
+                    <label htmlFor="theme-select">{t('theme')}:</label>
+                    <select
+                      id="theme-select"
+                      value={theme}
+                      onChange={(e) => handleThemeChange(e.target.value)}
+                    >
+                      <option value="light">{t('light')}</option>
+                      <option value="dark">{t('dark')}</option>
+                    </select>
+                  </div>
+                  <div className="setting-item">
+                    <label htmlFor="language-select">{t('language')}:</label>
+                    <select value={language} onChange={(e) => handleLanguageChange(e.target.value)}>
+                      <option value="en">English</option>
+                      <option value="fr">Français</option>
+                      <option value="es">Español</option>
+                      <option value="de">Deutsch</option>
+                      <option value="it">Italiano</option>
+                      <option value="pt">Português</option>
+                      <option value="nl">Nederlands</option>
+                      <option value="ru">Русский</option>
+                      <option value="ja">日本語</option>
+                      <option value="ko">한국어</option>
+                      <option value="ar">العربية</option>
+                      <option value="zh">中文</option>
+                      <option value="uk">Українська</option>
+                      <option value="pl">Polski</option>
+                      <option value="tr">Türkçe</option>
+                      <option value="vi">Tiếng Việt</option>
+                      <option value="ro">Română</option>
+                      <option value="sv">Svenska</option>
+                      <option value="no">Norsk</option>
+                      <option value="fi">Suomi</option>
+                      <option value="el">Ελληνικά</option>
+                      <option value="hu">Magyar</option>
+                      <option value="sr">Српски</option>
+                      <option value="id">Bahasa Indonesia</option>
+                      <option value="ur">اردو</option>
+                      <option value="hr">Hrvatski</option>
+                      <option value="is">Íslenska</option>
+                      <option value="et">Eesti</option>
+                      <option value="lt">Lietuvių</option>
+                      <option value="be">Беларуская</option>
+                      <option value="af">Afrikaans</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="settings-section">
+                  <h3>{t('audioAndVideo')}</h3>
+                  <div className="setting-item">
+                    <label htmlFor="audio-device-select">{t('audioInputDevice')}:</label>
+                    <select
+                      id="audio-device-select"
+                      value={selectedAudioDevice}
+                      onChange={(e) => setSelectedAudioDevice(e.target.value)}
+                    >
+                      {audioDevices.map((device) => (
+                        <option key={device.deviceId} value={device.deviceId}>
+                          {device.label || `${t('microphone')} ${audioDevices.indexOf(device) + 1}`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="setting-item">
+                    <label htmlFor="video-device-select">{t('videoInputDevice')}:</label>
+                    <select
+                      id="video-device-select"
+                      value={selectedVideoDevice}
+                      onChange={(e) => setSelectedVideoDevice(e.target.value)}
+                    >
+                      {videoDevices.map((device) => (
+                        <option key={device.deviceId} value={device.deviceId}>
+                          {device.label || `${t('camera')} ${videoDevices.indexOf(device) + 1}`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="setting-item">
+                    <div className="test-buttons">
+                      <button onClick={handleTestMicrophone}>
+                        {isTestingMic ? t('stopMicrophoneTest') : t('testMicrophone')}
+                      </button>
+                      <button onClick={handleTestCamera}>
+                        {isTestingVideo ? t('stopCameraTest') : t('testCamera')}
+                      </button>
+                    </div>
+                    {isTestingMic && (
+                      <canvas ref={audioVisualizerRef} className="audio-visualizer"></canvas>
+                    )}
+                    {isTestingVideo && (
+                      <video ref={videoPreviewRef} className="video-preview" autoPlay playsInline></video>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-        </main>
-      </div>
+            )}
+          </main>
+        </div>)}
       {showProfile && (
         <Profile
           onClose={() => setShowProfile(false)}
