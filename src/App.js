@@ -24,7 +24,7 @@ import disablemicroicon from './assets/disablemicro.png';
 
 
 import { FaPhone, FaPhoneVolume, FaVideo } from 'react-icons/fa';
-import {MdPhoneInTalk, MdVideocam, MdCallEnd} from 'react-icons/md';
+import { MdPhoneInTalk, MdVideocam, MdVideocamOff, MdCallEnd, MdMic, MdMicOff, MdPhoneForwarded, MdBedtime, MdBedtimeOff } from 'react-icons/md';
 // Activation du débogage JsSIP
 JsSIP.debug.enable('JsSIP:*');
 
@@ -42,7 +42,9 @@ function App() {
   const [currentPage, setCurrentPage] = useState('home');
   const [isLoading, setIsLoading] = useState(false);
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
-
+  const audioContextRef = useRef(null);
+  const analyserRef = useRef(null);
+  const animationFrameRef = useRef(null);
   const [registrationStatus, setRegistrationStatus] = useState('');
   const [callStatus, setCallStatus] = useState('');
   const [session, setSession] = useState(null);
@@ -53,12 +55,12 @@ function App() {
   const [callTo, setCallTo] = useState('');
   const [isVideoEnabled, setIsVideoEnabled] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [doNotDisturb, setDoNotDisturb] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [theme, setTheme] = useState('light');
   const [language, setLanguage] = useState('en');
   const availableLanguages = ['en', 'fr', 'es', 'de', 'it', 'pt', 'nl', 'ru', 'ja', 'ko', 'ar', 'zh', 'uk', 'pl', 'tr', 'vi', 'ro', 'sv', 'no', 'fi', 'el', 'hu', 'sr', 'id', 'ur', 'hr', 'is', 'et', 'lt', 'be', 'af'];
   const [isTransferMode, setIsTransferMode] = useState(false);
-
   const [token, setToken] = useState(null);
   const [isTestingMic, setIsTestingMic] = useState(false);
   const [isTestingVideo, setIsTestingVideo] = useState(false);
@@ -113,7 +115,7 @@ function App() {
   };
   const [isEditing, setIsEditing] = useState(false);
   const [editedProfile, setEditedProfile] = useState({ ...profile });
-// TODO 2 tokens + fichiers de configurations avec les identifiants auth2.0.
+  // TODO 2 tokens + fichiers de configurations avec les identifiants auth2.0.
   const generateToken = useCallback(async () => {
     try {
       const response = await fetch('http://192.168.1.34:3000/auth/token', {
@@ -341,6 +343,10 @@ function App() {
       }
     };
   }, [userAgent]);
+  const handleDoNotDisturb = () => {
+    setDoNotDisturb(prevState => !prevState);
+  };
+
 
   // Fonction pour initier un appel
   const handleCall = useCallback(async (withVideo = false) => {
@@ -498,14 +504,58 @@ function App() {
 
   const toggleAudio = useCallback(() => {
     if (session) {
-      const audioTrack = session.connection.getSenders()
-        .find(sender => sender.track && sender.track.kind === 'audio');
-      if (audioTrack) {
-        audioTrack.track.enabled = !audioTrack.track.enabled;
-        setIsAudioEnabled(audioTrack.track.enabled);
+      if (isAudioEnabled) {
+        session.mute({ audio: true });
+        stopAudioAnalysis();
+      } else {
+        session.unmute({ audio: true });
+        startAudioAnalysis();
       }
+      setIsAudioEnabled(!isAudioEnabled);
     }
+  }, [session, isAudioEnabled]);
+
+  const startAudioAnalysis = useCallback(() => {
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    analyserRef.current = audioContextRef.current.createAnalyser();
+    const source = audioContextRef.current.createMediaStreamSource(session.connection.getLocalStreams()[0]);
+    source.connect(analyserRef.current);
+    analyserRef.current.fftSize = 32;
+
+    const updateMicAnimation = () => {
+      const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+      analyserRef.current.getByteFrequencyData(dataArray);
+      const volume = dataArray.reduce((acc, val) => acc + val, 0) / dataArray.length / 255;
+
+      const micButton = document.querySelector('.btn-success-micro');
+      if (micButton) {
+        const angle = Math.min(volume * 360, 360);
+        micButton.style.setProperty('--mic-volume', `${angle}deg`);
+      }
+
+      animationFrameRef.current = requestAnimationFrame(updateMicAnimation);
+    };
+
+    updateMicAnimation();
   }, [session]);
+
+  const stopAudioAnalysis = useCallback(() => {
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+    const micButton = document.querySelector('.btn-success-micro');
+    if (micButton) {
+      micButton.style.setProperty('--mic-volume', '0deg');
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      stopAudioAnalysis();
+    };
+  }, [stopAudioAnalysis]);
 
   const getDevices = useCallback(async () => {
     try {
@@ -655,6 +705,14 @@ function App() {
       console.log('Hanging up call');
       session.terminate();
 
+      // Mettre à jour le statut d'appel
+      setCallStatus(t('Call ended')); // Assurez-vous que 'callEnded' est défini dans vos traductions
+
+      // Effacer le statut après 5 secondes
+      setTimeout(() => {
+        setCallStatus('');
+      }, 3000);
+
       // Insérer les données CDR
       if (token) {
         try {
@@ -787,7 +845,7 @@ function App() {
   };
   // Rendu de l'interface utilisateur principale
   return (
-    <div className={`app-container ${theme}`}>
+    <div className={`app-container ${theme} ${doNotDisturb ? 'dnd-active' : ''}`}>
       <CustomTitleBar />
       {!isLoggedIn ? (
         <LoginPage onLogin={handleLogin} t={t} />
@@ -812,7 +870,7 @@ function App() {
                     style={{ cursor: 'pointer' }}
                   />
                   <h2>
-                    {profile.name || username}
+                    {/* {profile.name || username} */}
                     {connectionFailed && (
                       <span
                         className="connection-warning"
@@ -822,19 +880,33 @@ function App() {
                       </span>
                     )}
                   </h2>
-                  <button className="btn-circle-logout btn-danger" onClick={handleLogout} title={t('logout')}><MdCallEnd /></button>
+                  <div className="header-buttons">
+                    <button
+                      className={`btn-circle btn-warning ${doNotDisturb ? 'active' : ''}`}
+                      onClick={handleDoNotDisturb}
+                      title={doNotDisturb ? t('Come back') : t('Do not disturb')}
+                    >
+                      {doNotDisturb ? <MdBedtimeOff /> : <MdBedtime />}
+                    </button>
+
+
+
+                    <button className="btn-circle-logout btn-danger" onClick={handleLogout} title={t('logout')}><MdCallEnd /></button>
+                  </div>
                 </header>
                 <div className="call-status">
-                  <p>{t('callStatus')}: {t(callStatus)}</p>
+                  <p>{t(callStatus)}</p>
                 </div>
                 <div className="keypad">
-                  <input
-                    type="text"
-                    value={callTo}
-                    onChange={(e) => setCallTo(e.target.value)}
-                    placeholder={t('enterNumber')}
-                    className="call-input"
-                  />
+                  <div className="call-input-container">
+                    <input
+                      type="text"
+                      value={callTo}
+                      onChange={(e) => setCallTo(e.target.value)}
+                      placeholder={t('enterNumber')}
+                      className="call-input"
+                    />
+                  </div>
                   <div className="keypad-buttons">
                     {keypadButtons.map((button) => (
                       <button
@@ -849,55 +921,52 @@ function App() {
                   </div>
                 </div>
                 <div className="call-controls">
-                  {!session && !incomingCall && (
+                  {callStatus === 'Incoming call' ? (
                     <>
-                    
-                      <button className="btn-circle btn-success" onClick={() => handleCall(false)} title={t('voiceCall')}>
-                                <MdPhoneInTalk />
-                        
+                      <button className="btn-circle btn-success" onClick={handleAnswer} title={t('answer')}>
+                        <MdPhoneInTalk />
                       </button>
-                      <button className="btn-circle btn-success" onClick={() => handleCall(true)} title={t('videoCall')}>
-                                                        <MdVideocam />
-
+                      <button className="btn-circle-hangup" onClick={handleReject} title={t('reject')}>
+                        <MdCallEnd />
                       </button>
                     </>
-                  )}
-                  {incomingCall && (
+                  ) : (
                     <>
-                      <button className="answer-button" onClick={handleAnswer}>{t('answer')}</button>
-                      <button className="reject-button" onClick={handleReject}>{t('reject')}</button>
-                    </>
-                  )}
-                  {session && (
-                    <>
-                      <button className="hangup-button" onClick={handleHangup} title={t('hangUp')}>
-                        <img src={hangupicon} alt={t('hangUp')} className="hangup-icon" />
-                      </button>
-                      <button
-                        className={`toggle-video-button ${isVideoEnabled ? 'active' : ''}`}
-                        onClick={toggleVideo}
-                        title={isVideoEnabled ? t('disableVideo') : t('enableVideo')}
-                      >
-                        <img
-                          src={isVideoEnabled ? disablevideoicon : enablevideoicon}
-                          alt={t('toggleVideo')}
-                          className="control-icon"
-                        />
-                      </button>
-                      <button
-                        className={`toggle-audio-button ${isAudioEnabled ? 'active' : ''}`}
-                        onClick={toggleAudio}
-                        title={isAudioEnabled ? t('muteAudio') : t('unmuteAudio')}
-                      >
-                        <img
-                          src={isAudioEnabled ? enablemicroicon : disablemicroicon}
-                          alt={t('toggleAudio')}
-                          className="control-icon"
-                        />
-                      </button>
-                      <button id="transfer-button" onClick={handleTransferClick}>
-                        {t('transfer')}
-                      </button>
+                      {!session && !incomingCall && (
+                        <>
+                          <button className="btn-circle btn-success" onClick={() => handleCall(false)} title={t('voiceCall')}>
+                            <MdPhoneInTalk />
+                          </button>
+                          <button className="btn-circle btn-success" onClick={() => handleCall(true)} title={t('videoCall')}>
+                            <MdVideocam />
+                          </button>
+                        </>
+                      )}
+                      {session && (
+                        <>
+                          <button className="btn-circle-hangup" onClick={handleHangup} title={t('hangUp')}>
+                            <MdCallEnd />
+                          </button>
+                          <button
+                            className={`btn-success-videocall ${isVideoEnabled ? 'active' : ''}`}
+                            onClick={toggleVideo}
+                            title={isVideoEnabled ? t('disableVideo') : t('enableVideo')}
+                          >
+                            {isVideoEnabled ? <MdVideocam /> : <MdVideocamOff />}
+                          </button>
+                          <button
+                            className={`btn-success-micro ${isAudioEnabled ? 'active' : ''}`}
+                            onClick={toggleAudio}
+                            title={isAudioEnabled ? t('muteAudio') : t('unmuteAudio')}
+                            style={{ '--mic-volume': '0deg' }}
+                          >
+                            {isAudioEnabled ? <MdMic /> : <MdMicOff />}
+                          </button>
+                          <button className="btn-circle-transfer" onClick={handleTransferClick} title={t('transfer')}>
+                            <MdPhoneForwarded />
+                          </button>
+                        </>
+                      )}
                     </>
                   )}
                 </div>
@@ -1051,52 +1120,48 @@ function App() {
                   </div>
                 </div>
                 <div className="settings-section">
-                  <h3>{t('audioAndVideo')}</h3>
-                  <div className="setting-item">
-                    <label htmlFor="audio-device-select">{t('audioInputDevice')}:</label>
-                    <select
-                      id="audio-device-select"
-                      value={selectedAudioDevice}
-                      onChange={(e) => setSelectedAudioDevice(e.target.value)}
-                    >
-                      {audioDevices.map((device) => (
-                        <option key={device.deviceId} value={device.deviceId}>
-                          {device.label || `${t('microphone')} ${audioDevices.indexOf(device) + 1}`}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="setting-item">
-                    <label htmlFor="video-device-select">{t('videoInputDevice')}:</label>
-                    <select
-                      id="video-device-select"
-                      value={selectedVideoDevice}
-                      onChange={(e) => setSelectedVideoDevice(e.target.value)}
-                    >
-                      {videoDevices.map((device) => (
-                        <option key={device.deviceId} value={device.deviceId}>
-                          {device.label || `${t('camera')} ${videoDevices.indexOf(device) + 1}`}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="setting-item">
-                    <div className="test-buttons">
-                      <button onClick={handleTestMicrophone}>
-                        {isTestingMic ? t('stopMicrophoneTest') : t('testMicrophone')}
-                      </button>
-                      <button onClick={handleTestCamera}>
-                        {isTestingVideo ? t('stopCameraTest') : t('testCamera')}
-                      </button>
-                    </div>
-                    {isTestingMic && (
-                      <canvas ref={audioVisualizerRef} className="audio-visualizer"></canvas>
-                    )}
-                    {isTestingVideo && (
-                      <video ref={videoPreviewRef} className="video-preview" autoPlay playsInline></video>
-                    )}
-                  </div>
-                </div>
+  <h3>{t('audioAndVideo')}</h3>
+  <div className="setting-item">
+    <label htmlFor="audio-device-select">{t('audioInputDevice')}:</label>
+    <select
+      id="audio-device-select"
+      value={selectedAudioDevice}
+      onChange={(e) => setSelectedAudioDevice(e.target.value)}
+    >
+      {audioDevices.map((device) => (
+        <option key={device.deviceId} value={device.deviceId}>
+          {device.label || `Microphone ${device.deviceId}`}
+        </option>
+      ))}
+    </select>
+  </div>
+  <div className="setting-item">
+    <button className="test-audio" onClick={handleTestMicrophone}>
+      {isTestingMic ? t('stopMicrophoneTest') : t('testMicrophone')}
+    </button>
+    <canvas ref={audioVisualizerRef} className="audio-visualizer"></canvas>
+  </div>
+  <div className="setting-item">
+    <label htmlFor="video-device-select">{t('videoInputDevice')}:</label>
+    <select
+      id="video-device-select"
+      value={selectedVideoDevice}
+      onChange={(e) => setSelectedVideoDevice(e.target.value)}
+    >
+      {videoDevices.map((device) => (
+        <option key={device.deviceId} value={device.deviceId}>
+          {device.label || `Camera ${device.deviceId}`}
+        </option>
+      ))}
+    </select>
+  </div>
+  <div className="setting-item">
+    <button className="test-video" onClick={handleTestCamera}>
+      {isTestingVideo ? t('stopCameraTest') : t('testCamera')}
+    </button>
+    <video ref={videoPreviewRef} className="video-preview" autoPlay playsInline muted></video>
+  </div>
+</div>
               </div>
             )}
           </main>

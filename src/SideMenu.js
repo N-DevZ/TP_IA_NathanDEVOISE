@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaHome, FaPhone, FaUser, FaCog, FaSync, FaAddressBook } from 'react-icons/fa';
+import { MdHome, MdHistory, MdContacts, MdFace, MdSettings, MdRefresh} from 'react-icons/md';
 import './SideMenu.css';
 
 function SideMenu({ onNavigate, currentPage, onRefresh, t }) {
@@ -10,42 +10,42 @@ function SideMenu({ onNavigate, currentPage, onRefresh, t }) {
         onClick={() => onNavigate('home')}
         title={t('home')}
       >
-        <FaHome />
+        <MdHome />
       </button>
       <button 
         className={`menu-item ${currentPage === 'callHistory' ? 'active' : ''}`} 
         onClick={() => onNavigate('callHistory')}
         title={t('callHistory')}
       >
-        <FaPhone />
+        <MdHistory />
       </button>
       <button 
         className={`menu-item ${currentPage === 'contacts' ? 'active' : ''}`} 
         onClick={() => onNavigate('contacts')}
         title={t('contacts')}
       >
-        <FaAddressBook />
+        <MdContacts />
       </button>
       <button 
         className={`menu-item ${currentPage === 'profile' ? 'active' : ''}`} 
         onClick={() => onNavigate('profile')}
         title={t('profile')}
       >
-        <FaUser />
+        <MdFace />
       </button>
       <button 
         className={`menu-item ${currentPage === 'settings' ? 'active' : ''}`} 
         onClick={() => onNavigate('settings')}
         title={t('settings')}
       >
-        <FaCog />
+        <MdSettings />
       </button>
       <button 
         className="menu-item"
         onClick={onRefresh}
         title={t('refresh')}
       >
-        <FaSync />
+        <MdRefresh />
       </button>
     </div>
   );

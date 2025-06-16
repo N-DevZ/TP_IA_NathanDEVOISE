@@ -7,8 +7,10 @@
 --btn-color-danger: white;
 --btn-bg-keypad: lightgray;
 --btn-color-keypad: #333;
+--btn-color-dnd: grey;
 --app-header-color: white;
 --app-header-bg: lightgray;
+--btn-bg-transfer: blue;
 }
 
 .app-container {
@@ -17,7 +19,34 @@
   height: 100vh;
   font-family: Arial, sans-serif;
 }
+.app-container.dnd-active {
+  position: relative;
+}
 
+.app-container.dnd-active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(128, 128, 128, 0.5); /* Gris semi-transparent */
+  z-index: 9999; /* Assurez-vous que cette valeur est supérieure à tous les autres z-index de votre application */
+  pointer-events: none; /* Permet toujours les interactions avec les éléments en dessous */
+}
+
+.app-container.dnd-active * {
+  cursor: not-allowed !important;
+}
+.app-container.dnd-active .btn-circle.btn-warning,
+.app-container.dnd-active .btn-circle.btn-warning * {
+  cursor: pointer !important;
+}
+
+.app-container.dnd-active .btn-circle.btn-warning:hover,
+.app-container.dnd-active .btn-circle.btn-warning:hover * {
+  cursor: pointer !important;
+}
 .app-main {
   flex: 1;
   padding: 20px;
@@ -74,6 +103,11 @@
   cursor: pointer;
   font-size: 14px;
 }
+.header-buttons {
+  display: flex;
+  align-items: center;
+}
+
 
 .connection-warning {
   color: var(--btn-bg-danger);
@@ -96,17 +130,31 @@
 }
 
 .call-input {
-  width: 15vh;
-  max-width: 300px;
-  padding: 8px;
-  font-size: 16px;
-  margin-bottom: 10px;
+  width: 100%;
+  border: none;
+  border-bottom: 2px solid #ccc;
+  background-color: transparent;
+  font-size: 17px;
+  padding: 5px 0;
+  outline: none;
+  text-align: center;
+}
+.call-input-container {
+  width: 26vh;
+  margin-bottom: 20px;
+  position: relative;
+}
+.call-input::placeholder {
+  color: #999;
 }
 
+.call-input:focus {
+  border-bottom-color: #007bff;
+}
 .keypad-buttons {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: 3vh;
 }
 
 .keypad-button {
@@ -131,7 +179,7 @@
 .call-controls {
   display: flex;
   justify-content: center;
-  gap: 10px;
+  gap: 3vh;
   margin-top: 20px;
 }
 
@@ -337,9 +385,26 @@
   font-size: 16px;
 }
 
-.test-buttons {
-  display: flex;
-  gap: 15px;
+.test-video {
+ padding: 12px 24px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  background-color: #2196F3;
+  color: white;
+  transition: background-color 0.3s ease;
+}
+
+.test-audio{
+   padding: 12px 24px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  background-color: #2196F3;
+  color: white;
+  transition: background-color 0.3s ease;
 }
 .btn-circle {
   display: flex;
@@ -352,7 +417,6 @@
   cursor: pointer;
   background-color: transparent;
   color: transparent;
-
 }
 .btn-circle-logout {
   display: flex;
@@ -372,9 +436,112 @@
   top: 3.5vh;
   transform: translateY(-50%);
 }
+
+.btn-circle-hangup {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 70%;
+  width: 5vh;
+  height: 5vh;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  background-color: var(--btn-bg-danger);
+  color: var(--btn-color-danger);
+}
+.btn-circle-transfer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 70%;
+  width: 5vh;
+  height: 5vh;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  background-color: var(--btn-bg-transfer);
+  color: var(--btn-color-danger);
+  
+}
 .btn-success {
   background-color: var(--btn-bg-success);
   color: var(--btn-color-success);
+}
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 255, 0, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(0, 255, 0, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 255, 0, 0);
+  }
+}
+
+button.btn-success-videocall {
+  background-color: var(--btn-color-keypad);
+  color: var(--btn-color-success);
+  border: 3px solid var(--btn-bg-danger);
+  width: 6.5vh;
+  height: 6.5vh;
+  border-radius: 50%;
+ 
+  padding: 0;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+button.btn-success-videocall.active {
+  border-color: var(--btn-bg-success);
+  animation: pulse 2s infinite;
+}
+
+button.btn-success-videocall svg {
+  width: 60%;
+  height: 60%;
+}
+
+button.btn-success-micro {
+  background-color: var(--btn-color-keypad);
+  color: var(--btn-color-success);
+  width: 6.5vh;
+  height: 6.5vh;
+  border-radius: 50%;
+  padding: 0;
+  position: relative;
+  overflow: hidden;
+  border: none; /* Supprimez la bordure par défaut */
+}
+button.btn-success-micro:not(.active) {
+  border: 3px solid var(--btn-bg-danger);
+}
+.btn-success-micro::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: conic-gradient(
+    var(--btn-bg-success) var(--mic-volume, 0deg),
+    transparent var(--mic-volume, 0deg)
+  );
+  border-radius: 50%;
+  mask: radial-gradient(transparent 55%, black 56%);
+  -webkit-mask: radial-gradient(transparent 55%, black 56%);
+  opacity: 0; /* Cachez l'animation par défaut */
+}
+
+button.btn-success-micro.active::before {
+  opacity: 1;
+}
+
+button.btn-success-micro svg {
+  width: 60%;
+  height: 60%;
+  position: relative;
+  z-index: 1;
 }
 
 .btn-danger {
@@ -382,6 +549,46 @@
   color: var(--btn-color-danger);
 }
 
+.btn-warning {
+  background-color: var(--btn-bg-warning);
+  color: var(--btn-color-warning);
+  width: 5vh;
+  height: 5vh;
+  position: absolute;
+  right: 7vh; /* Ajustez cette valeur selon l'espace nécessaire pour le bouton de déconnexion */
+  top: 50%;
+  transform: translateY(-50%);
+}
+.btn-circle.btn-warning {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 5vh;
+  height: 5vh;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  background-color: #333; /* Couleur par défaut quand DND n'est pas actif */
+  color: var(--btn-color-warning);
+  position: absolute;
+  right: 7vh;
+  top: 50%;
+  transform: translateY(-50%);
+  transition: background-color 0.3s ease;
+}
+
+.btn-circle.btn-warning:hover {
+  opacity: 0.8;
+}
+
+.btn-circle.btn-warning.active {
+  background-color: gray; /* Couleur quand DND est actif */
+}
+
+.btn-circle.btn-warning svg {
+  width: 60%;
+  height: 60%;
+}
 .call-controls .call-button .call-icon {
   width: 7.9vh;
   /* ou la taille que vous voulez pour l'icône d'appel vocal */
