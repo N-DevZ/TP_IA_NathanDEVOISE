@@ -23,8 +23,8 @@ import enablemicroicon from './assets/enablemicro.png';
 import disablemicroicon from './assets/disablemicro.png';
 
 
-import { FaPhone, FaVideo } from 'react-icons/fa';
-
+import { FaPhone, FaPhoneVolume, FaVideo } from 'react-icons/fa';
+import {MdPhoneInTalk, MdVideocam, MdCallEnd} from 'react-icons/md';
 // Activation du débogage JsSIP
 JsSIP.debug.enable('JsSIP:*');
 
@@ -113,7 +113,7 @@ function App() {
   };
   const [isEditing, setIsEditing] = useState(false);
   const [editedProfile, setEditedProfile] = useState({ ...profile });
-
+// TODO 2 tokens + fichiers de configurations avec les identifiants auth2.0.
   const generateToken = useCallback(async () => {
     try {
       const response = await fetch('http://192.168.1.34:3000/auth/token', {
@@ -532,7 +532,7 @@ function App() {
 
   const handleVideoCallContact = useCallback((number) => {
     setCallTo(number);
-    handleCall(true);  // true pour un appel vidéo
+    handleCall(true);  // true pourcall-icon un appel vidéo
   }, [setCallTo, handleCall]);
   // Fonction pour répondre à un appel entrant
   const handleAnswer = useCallback(async () => {
@@ -822,7 +822,7 @@ function App() {
                       </span>
                     )}
                   </h2>
-                  <button className="logout-button" onClick={handleLogout}>{t('logout')}</button>
+                  <button className="btn-circle-logout btn-danger" onClick={handleLogout} title={t('logout')}><MdCallEnd /></button>
                 </header>
                 <div className="call-status">
                   <p>{t('callStatus')}: {t(callStatus)}</p>
@@ -851,11 +851,14 @@ function App() {
                 <div className="call-controls">
                   {!session && !incomingCall && (
                     <>
-                      <button className="call-button" onClick={() => handleCall(false)} title={t('voiceCall')}>
-                        <img src={callIcon} alt={t('voiceCall')} className="call-icon" />
+                    
+                      <button className="btn-circle btn-success" onClick={() => handleCall(false)} title={t('voiceCall')}>
+                                <MdPhoneInTalk />
+                        
                       </button>
-                      <button className="video-call-button" onClick={() => handleCall(true)} title={t('videoCall')}>
-                        <img src={videocallicon} alt={t('videoCall')} className="video-call-icon" />
+                      <button className="btn-circle btn-success" onClick={() => handleCall(true)} title={t('videoCall')}>
+                                                        <MdVideocam />
+
                       </button>
                     </>
                   )}

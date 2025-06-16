@@ -1,3 +1,16 @@
+:root {
+--btn-bg-success : lightgreen;
+--btn-color-success :white;
+--btn-bg-warning : orange;
+--btn-color-warning: white;
+--btn-bg-danger: red;
+--btn-color-danger: white;
+--btn-bg-keypad: lightgray;
+--btn-color-keypad: #333;
+--app-header-color: white;
+--app-header-bg: lightgray;
+}
+
 .app-container {
   display: flex;
   flex-direction: column;
@@ -17,8 +30,8 @@
 }
 
 .app-header {
-  background-color: #4CAF50;
-  color: white;
+  background-color: var(--app-header-bg);
+  color: var(--app-header-color);
   height: 50px;
   display: flex;
   align-items: center;
@@ -54,8 +67,8 @@
   top: 50%;
   right: 10px;
   transform: translateY(-50%);
-  background-color: #f44336;
-  color: white;
+  background-color: var(--btn-bg-danger);
+  color: var(--btn-color-danger);
   border: none;
   padding: 4px 8px;
   cursor: pointer;
@@ -63,7 +76,7 @@
 }
 
 .connection-warning {
-  color: red;
+  color: var(--btn-bg-danger);
   margin-left: 5px;
   font-size: 20px;
   cursor: help;
@@ -100,7 +113,8 @@
   width: 50px;
   height: 50px;
   font-size: 20px;
-  background-color: #ddd;
+  color: var(--btn-color-keypad);
+  background-color: var(--btn-bg-keypad);
   border: none;
   border-radius: 50%;
   cursor: pointer;
@@ -132,16 +146,6 @@
   align-items: center;
   justify-content: center;
 }
-
-/* .call-button {
-  background-color: #3bf751;
-  color: white;
-} */
-
-
-
-
-
 
 
 .video-container {
@@ -266,7 +270,7 @@
   border: none;
   cursor: pointer;
   font-size: 18px;
-  color: #4CAF50;
+  color: var(--btn-bg-green)
 }
 
 .profile-actions {
@@ -284,7 +288,7 @@
 }
 
 .save-button {
-  background-color: #4CAF50;
+  background-color: var(--btn-bg-green);
   color: white;
 }
 
@@ -308,10 +312,10 @@
 }
 
 .settings-section h3 {
-  border-bottom: 2px solid #4CAF50;
+  border-bottom: 2px solid var(--btn-bg-green);
   padding-bottom: 10px;
   margin-bottom: 20px;
-  color: #4CAF50;
+  color: var(--btn-bg-green);
 }
 
 .setting-item {
@@ -337,12 +341,55 @@
   display: flex;
   gap: 15px;
 }
+.btn-circle {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 7.9vh;
+  height: 7.9vh;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  background-color: transparent;
+  color: transparent;
+
+}
+.btn-circle-logout {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 90%;
+  width: 5vh;
+  height: 5vh;
+
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  background-color: transparent;
+  color: transparent;
+  position : absolute;
+  right: 1vh;
+  top: 3.5vh;
+  transform: translateY(-50%);
+}
+.btn-success {
+  background-color: var(--btn-bg-success);
+  color: var(--btn-color-success);
+}
+
+.btn-danger {
+  background-color: var(--btn-bg-danger);
+  color: var(--btn-color-danger);
+}
 
 .call-controls .call-button .call-icon {
   width: 7.9vh;
   /* ou la taille que vous voulez pour l'icône d'appel vocal */
   height: 7.9vh;
   margin-left: 1.14vh;
+  border-radius: 50%;
+  background-color: var(--btn-bg-success);
+  color: var(--btn-color-success)
 }
 
 .call-controls .video-call-button .video-call-icon {

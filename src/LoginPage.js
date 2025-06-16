@@ -12,7 +12,7 @@ function LoginPage({ onLogin, t }) {
     e.preventDefault();
     onLogin(username, password);
   };
-
+// TODO language de droite à gauche à définir dans l'input de cette page.
   return (
     <div className="login-page">
       <CustomTitleBar />
