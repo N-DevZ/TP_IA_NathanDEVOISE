@@ -11,13 +11,50 @@
 --app-header-color: white;
 --app-header-bg: lightgray;
 --btn-bg-transfer: blue;
+--btn-save: green;
+--btn-modify: #2196F3;
+}
+.app-container.light {
+  --bg-color: #ffffff;
+  --text-color: #333333;
+  --primary-color: midnightblue;
+  --primary-hover-color: #0056b3;
+  --secondary-bg-color: #f8f9fa;
+  --border-color: #dee2e6;
+  --input-bg-color: #ffffff;
+  --hover-color: #e9ecef;
 }
 
+.app-container.dark {
+  --bg-color: #1e1e1e;
+  --text-color: #ffffff;
+  --primary-color: lightgray;
+  --primary-hover-color: #138496;
+  --secondary-bg-color: #2a2a2a;
+  --border-color: #444444;
+  --input-bg-color: #333333;
+  --hover-color: #3a3a3a;
+  --btn-bg-success: #28a745;
+  --btn-color-success: #ffffff;
+  --btn-bg-warning: #ffc107;
+  --btn-color-warning: #000000;
+  --btn-bg-danger: #dc3545;
+  --btn-color-danger: #ffffff;
+  --btn-bg-keypad: #333333;
+  --btn-color-keypad: #ffffff;
+  --app-header-bg: #2a2a2a;
+  --app-header-color: #ffffff;
+  --btn-bg-transfer: #0056b3;
+  --btn-save: #28a745;
+  --btn-modify: #17a2b8;
+}
 .app-container {
   display: flex;
   flex-direction: column;
   height: 100vh;
   font-family: Arial, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
 }
 .app-container.dnd-active {
   position: relative;
@@ -127,6 +164,7 @@
   flex-direction: column;
   align-items: center;
   margin-bottom: 20px;
+  
 }
 
 .call-input {
@@ -230,10 +268,10 @@
 
 /* Styles pour la page de profil */
 .profile-page {
-  max-width: 600px;
+  max-width: 100vh;
   margin: 0 auto;
-  padding: 20px;
-  background-color: #fff;
+  padding: 40px;
+  background-color: var(--secondary-bg-color);
   border-radius: 8px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
@@ -280,10 +318,61 @@
   opacity: 1;
 }
 
-.profile-photo-icon {
-  color: white;
-  font-size: 24px;
+
+
+.transfer-popup {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
 }
+
+.transfer-popup-content {
+  background-color: rgba(255, 255, 255, 0.9);
+  padding: 20px;
+  border-radius: 10px;
+  position: relative;
+  width: 80%;
+  max-width: 500px;
+  max-height: 80%;
+  overflow-y: auto;
+  transition: opacity 0.3s ease;
+}
+
+.close-popup {
+  position: absolute;
+  top: 4px;
+  right: 7.2px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #333;
+}
+
+.eye-icon {
+  position: absolute;
+  top: 8.2px;
+  right: 35px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #333;
+  transition: opacity 0.3s ease;
+}
+
+.eye-icon:hover + .transfer-popup-content,
+.eye-icon:focus + .transfer-popup-content {
+  opacity: 0.1;
+}
+
 
 .profile-name {
   font-size: 24px;
@@ -303,27 +392,28 @@
 
 .profile-field input,
 .profile-field textarea {
-  width: 100%;
+  width: 95%;
   padding: 8px;
   border: 1px solid #ddd;
   border-radius: 4px;
+  background-color: var(--secondary-bg-color);
 }
 
 .edit-button {
   position: absolute;
-  right: 5px;
   top: 65%;
   transform: translateY(-50%);
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 18px;
-  color: var(--btn-bg-green)
+  font-size: 25px;
+  color: var(--btn-modify)
 }
 
 .profile-actions {
+  display: flex;
+  justify-content: flex-end;
   margin-top: 20px;
-  text-align: right;
 }
 
 .profile-actions button {
@@ -336,7 +426,7 @@
 }
 
 .save-button {
-  background-color: var(--btn-bg-green);
+  background-color: var(--btn-save);
   color: white;
 }
 
@@ -344,19 +434,46 @@
   background-color: #f44336;
   color: white;
 }
-
+.profile-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  background-color: var(--bg-color);
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
 /* Styles pour la page de paramètres */
 .settings-page {
-  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  height: 80vh;
+  padding: 25px;
+  overflow: hidden;
   margin: 0 auto;
-  padding: 20px;
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  border-radius: 10px;
 }
 
+.settings-page h2 {
+  display: flex;
+  align-items: center;
+  font-size: 24px;
+  margin-bottom: 20px;
+  color: var(--primary-bg-color);
+}
+
+.settings-page h2 svg {
+  margin-right: 10px;
+}
 .settings-section {
-  margin-bottom: 30px;
+  margin-bottom: 20px;
+  border-radius: 5px;
+  overflow: hidden;
+  transition: all 0.3s ease;
 }
 
 .settings-section h3 {
@@ -365,26 +482,90 @@
   margin-bottom: 20px;
   color: var(--btn-bg-green);
 }
+.section-content {
+  padding: 15px;
+  background-color: var(--bg-color);
+}
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  margin-inline: 15px;
+  background-color: var(--secondary-bg-color);
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+.section-header:hover {
+  background-color: var(--hover-color);
+}
 
+.section-header h3 {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  font-size: 18px;
+  color: var(--primary-color);
+}
+.settings-footer {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 20px;
+  background-color: var(--app-header-bg);
+  border-top: 1px solid #ccc;
+  margin-inline:35px;
+}
+
+.settings-footer button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  background-color: var(--btn-bg-success);
+  color: var(--btn-color-success);
+  cursor: pointer;
+}
+
+.settings-footer button:hover {
+  opacity: 0.8;
+}
+.settings-content {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+.section-header h3 svg {
+  margin-right: 10px;
+}
 .setting-item {
-  margin-bottom: 20px;
+  margin-bottom: 15px;
 }
 
 .setting-item label {
   display: block;
-  font-weight: bold;
-  margin-bottom: 8px;
-  color: #333;
+  margin-bottom: 5px;
+  color: var(--text-color);
 }
 
-.setting-item select {
+.setting-item select,
+.setting-item button {
   width: 100%;
   padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  background-color: var(--input-bg-color);
+  color: var(--text-color);
   font-size: 16px;
 }
-
+.setting-item button {
+  cursor: pointer;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  transition: background-color 0.3s ease;
+}
+.setting-item button:hover {
+  background-color: var(--primary-hover-color);
+}
 .test-video {
  padding: 12px 24px;
   border: none;
@@ -689,12 +870,13 @@ button.btn-success-micro svg {
   background-color: #1976D2;
 }
 
-.audio-visualizer {
+.audio-visualizer,
+.video-preview {
   width: 100%;
-  height: 100px;
-  background-color: #f0f0f0;
-  margin-top: 15px;
-  border-radius: 4px;
+  height: 150px;
+  background-color: var(--secondary-bg-color);
+  border-radius: 5px;
+  margin-top: 10px;
 }
 
 .video-preview {
@@ -750,4 +932,91 @@ button.btn-success-micro svg {
 .contact-directory.transfer-mode .contact-actions {
   display: flex;
   align-items: center;
+}
+/* Ajoutez ces styles à la fin de votre fichier App.css */
+
+.settings-modal {
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  padding: 20px;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.settings-modal h2 {
+  color: var(--btn-bg-green);
+  border-bottom: 2px solid var(--btn-bg-green);
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+
+.accordion-item {
+  margin-bottom: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.accordion-header {
+  background-color: #f0f0f0;
+  padding: 10px 15px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.accordion-header h3 {
+  margin: 0;
+  color: #333;
+}
+
+.accordion-content {
+  padding: 15px;
+  background-color: #fff;
+}
+
+.accordion-content label {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.accordion-content select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.test-button {
+  background-color: var(--btn-modify);
+  color: white;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+.settings-actions {
+  margin-top: 20px;
+  text-align: right;
+}
+
+.settings-actions button {
+  padding: 8px 15px;
+  margin-left: 10px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.settings-actions button:first-child {
+  background-color: var(--btn-save);
+  color: white;
+}
+
+.settings-actions button:last-child {
+  background-color: var(--btn-bg-danger);
+  color: white;
 }

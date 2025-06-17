@@ -1,75 +1,119 @@
 import React, { useState } from 'react';
+import { MdEdit } from 'react-icons/md';
 import './Profile.css';
 
-function Profile({ onClose, profile, onUpdate }) {
-  const [localProfile, setLocalProfile] = useState(profile);
+const ProfileField = ({ label, type, value, onChange, onEdit, isEditing, t }) => (
+  <div className="profile-field">
+    <label>{t(label)}</label>
+    {type === 'textarea' ? (
+      <textarea
+        value={value}
+        readOnly={!isEditing}
+        onChange={onChange}
+      />
+    ) : (
+      <input
+        type={type}
+        value={value}
+        readOnly={!isEditing}
+        onChange={onChange}
+      />
+    )}
+    {!isEditing && (
+      <button className="edit-button" onClick={onEdit} title={t('Modify')}>
+        <MdEdit />
+      </button>
+    )}
+  </div>
+);
+
+function Profile({ onClose, profile, onUpdate, t }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedProfile, setEditedProfile] = useState({ ...profile });
+
+  const handleEdit = (field) => {
+    setIsEditing(true);
+  };
+
+  const handleInputChange = (field, value) => {
+    setEditedProfile({ ...editedProfile, [field]: value });
+  };
 
   const handleSave = () => {
-    onUpdate(localProfile);
-    onClose();
+    onUpdate(editedProfile);
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    setEditedProfile({ ...profile });
+    setIsEditing(false);
   };
 
   const handlePhotoChange = (e) => {
     const file = e.target.files[0];
     const reader = new FileReader();
     reader.onloadend = () => {
-      setLocalProfile({ ...localProfile, photo: reader.result });
+      setEditedProfile({ ...editedProfile, photo: reader.result });
     };
     reader.readAsDataURL(file);
   };
 
   return (
     <div className="profile-modal">
-      <h2>Edit Profile</h2>
-      <div>
-        <label>
-          Name:
-          <input
-            type="text"
-            value={localProfile.name}
-            onChange={(e) => setLocalProfile({ ...localProfile, name: e.target.value })}
-          />
+      <h2>{t('Edit Profile')}</h2>
+      <div className="profile-photo-container">
+        <img
+          src={editedProfile.photo || profile.photo}
+          alt={t('Profile Picture')}
+          className="profile-photo"
+        />
+        <input
+          type="file"
+          id="photo-upload"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={handlePhotoChange}
+        />
+        <label htmlFor="photo-upload" className="change-photo-button">
+          {t('Change Photo')}
         </label>
       </div>
-      <div>
-        <label>
-          Email:
-          <input
-            type="email"
-            value={localProfile.email}
-            onChange={(e) => setLocalProfile({ ...localProfile, email: e.target.value })}
-          />
-        </label>
-      </div>
-      <div>
-        <label>
-          Bio:
-          <textarea
-            value={localProfile.bio}
-            onChange={(e) => setLocalProfile({ ...localProfile, bio: e.target.value })}
-          />
-        </label>
-      </div>
-      <div>
-        <label>
-          Color:
-          <input
-            type="color"
-            value={localProfile.color}
-            onChange={(e) => setLocalProfile({ ...localProfile, color: e.target.value })}
-          />
-        </label>
-      </div>
-      <div>
-        <label>
-          Profile Photo:
-          <input type="file" accept="image/*" onChange={handlePhotoChange} />
-        </label>
-      </div>
-      <div>
-        <button onClick={handleSave}>Save</button>
-        <button onClick={onClose}>Cancel</button>
-      </div>
+      <ProfileField
+        label="Name"
+        type="text"
+        value={editedProfile.name}
+        onChange={(e) => handleInputChange('name', e.target.value)}
+        onEdit={() => handleEdit('name')}
+        isEditing={isEditing}
+        t={t}
+      />
+      <ProfileField
+        label="Email"
+        type="email"
+        value={editedProfile.email}
+        onChange={(e) => handleInputChange('email', e.target.value)}
+        onEdit={() => handleEdit('email')}
+        isEditing={isEditing}
+        t={t}
+      />
+      <ProfileField
+        label="Bio"
+        type="textarea"
+        value={editedProfile.bio}
+        onChange={(e) => handleInputChange('bio', e.target.value)}
+        onEdit={() => handleEdit('bio')}
+        isEditing={isEditing}
+        t={t}
+      />
+      {isEditing && (
+        <div className="profile-actions">
+          <button className="save-button" onClick={handleSave}>{t('Save')}</button>
+          <button className="cancel-button" onClick={handleCancel}>{t('Cancel')}</button>
+        </div>
+      )}
+      {!isEditing && (
+        <button className="close-button" onClick={onClose}>{t('Close')}</button>
+      )}
     </div>
   );
 }

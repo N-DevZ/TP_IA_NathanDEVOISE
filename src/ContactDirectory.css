@@ -1,10 +1,9 @@
-
 .contact-directory {
   max-width: 800px;
   height: calc(100vh - 200px);
   margin: 0 auto;
   padding: 20px;
-  background-color: #f5f5f5;
+  background-color: var(--secondary-bg-color);
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   display: flex;
@@ -13,7 +12,7 @@
 }
 
 .contact-directory h2 {
-  color: #333;
+  color: var(--primary-bg-color);
   font-size: 24px;
   margin-bottom: 20px;
   text-align: center;
@@ -25,6 +24,33 @@
   padding-right: 10px;
 }
 
+.search-input-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.search-input {
+  width: 80%;
+  max-width: 400px;
+  padding: 10px 15px;
+  font-size: 16px;
+  border: none;
+  border-bottom: 2px solid #ccc;
+  border-radius: 20px;
+  outline: none;
+  transition: border-color 0.3s ease;
+  background-color: var(--secondary-bg-color);
+}
+
+.search-input:focus {
+  border-bottom-color: #007bff;
+}
+
+.search-input::placeholder {
+  color: #999;
+}
+
 .contact-list {
   list-style-type: none;
   padding: 0;
@@ -32,14 +58,94 @@
 }
 
 .contact-item {
-  background-color: #fff;
-  border-radius: 4px;
-  margin-bottom: 10px;
-  padding: 15px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  transition: all 0.3s ease;
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+}
+.filter-container.open .filter-options {
+  display: flex;
+}
+.filter-container {
+  display: flex;
+  justify-content: space-between; /* Espacement égal entre les icônes */
+  align-items: center;
+  width: 100%; /* Occupe toute la largeur */
+  margin-bottom: 0px; /* Ajusté pour éviter le décalage */
+  background-color: var(--secondary-bg-color); /* Fond léger pour différencier la section */
+  border-radius: 8px; /* Bords arrondis */
+  position: relative; /* Ajouté pour positionner les options du filtre */
+  height: 5vh;
+  margin-bottom: 5vh;
+}
+
+/* Style des icônes dans le conteneur */
+.sort-option, .sort-order {
+  font-size: 24px; /* Taille d'icône uniforme */
+  cursor: pointer;
+  transition: transform 0.3s ease, color 0.3s ease;
+  padding: 8px;
+  border-radius: 8px; /* Coins arrondis pour les icônes */
+  color: #333; /* Couleur des icônes */
+}
+.filter-button {
+  background-color: var(--btn-color-keypad);
+  color: var(--secondary-bg-color);
+  width: 5vh;
+  height: 5vh;
+  border-radius: 50%;
+  padding: 0;
+  margin-top: 1vh;
+  position: relative;
+  overflow: hidden;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.3s ease, background-color 0.3s ease;
+}
+
+/* Effet de survol pour le bouton de filtre */
+.filter-button:hover {
+  transform: scale(1.1); /* Agrandissement du bouton au survol */
+  background-color: #007bff; /* Changer la couleur de fond */
+  color: #fff; /* Changer la couleur du texte */
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3); /* Ajouter une ombre douce */
+  transition: transform 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Effet lorsque le bouton est activé (cliqué ou ouvert) */
+.filter-button.active {
+  transform: scale(1.15); /* Agrandissement supplémentaire pour marquer l'activation */
+  background-color: #0056b3; /* Couleur de fond plus foncée lorsqu'il est actif */
+  box-shadow: 0 6px 16px rgba(0, 86, 179, 0.4); /* Ombre plus marquée pour l'activation */
+  transition: transform 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.filter-options {
+  position: absolute;
+  top: 100%; /* Positionne les options juste en dessous du bouton */
+  left: 0;
+  right: 0;
+  display: none; /* Caché par défaut */
+  flex-direction: column;
+  background-color: #f5f5f5;
+  padding: 10px 0;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+/* On survole les icônes */
+.sort-option:hover, .sort-order:hover {
+  transform: scale(1.1);
+  color: #007bff;
+  background-color: #e0e0e0;
+}
+.filter-button svg {
+  transition: transform 0.3s ease;
+}
+
+/* Rotation de l'icône lorsque le filtre est ouvert */
+.filter-button.active svg {
+  transform: rotate(180deg); /* Rotation de l'icône de 180° */
 }
 
 .contact-item:hover {
@@ -47,18 +153,58 @@
 }
 
 .contact-info {
-  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.contact-name-extension {
+  display: flex;
+  flex-direction: column;
 }
 
 .contact-name {
+  font-size: 16px;
+  color: #000;
   font-weight: bold;
-  color: #333;
-  margin-bottom: 5px;
+}
+
+.contact-extension {
+  font-size: 18px;
+  color: var(--btn-color-keypad);
+  margin-top: 2px;
 }
 
 .contact-number {
-  color: #666;
-  font-size: 14px;
+  font-size: 12px;
+  color: var(--btn-modify);
+  margin-top: 2px;
+  font-style: italic;  /* Ajout de cette ligne pour mettre en italique */
+}
+
+.keypad-and-suggestions {
+  display: flex;
+  justify-content: space-between;
+}
+
+.keypad {
+  flex: 1;
+  margin-right: 20px;
+}
+
+.contact-suggestions {
+  flex: 1;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.contact-suggestion {
+  padding: 10px;
+  cursor: pointer;
+  border-bottom: 1px solid #eee;
+}
+
+.contact-suggestion:hover {
+  background-color: #f5f5f5;
 }
 
 .contact-actions {
@@ -68,33 +214,63 @@
 
 .call-button-contacts,
 .video-call-button-contacts {
-  width: 4vh;
-  height: 4vh;
-  background-color: transparent;
+  background: none;
   border: none;
-  border-radius: 40px;
   cursor: pointer;
+  gap: 3vh;
+  border-radius: 50%;
+  margin: 0 5px;
   display: flex;
   justify-content: center;
   align-items: center;
-  margin: 0 5px;
-  transition: background-color 0.3s ease;
 }
 
-.call-button-contacts:hover,
-.video-call-button-contacts:hover {
-  background-color: #dbdbdb;
+.btn-transfer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 70%;
+  width: 6vh;
+  padding: 11px;
+  height: 6vh;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  background-color: var(--btn-bg-transfer);
+  color: var(--btn-color-danger);
 }
 
+.transfer-icon-contacts {
+  width: 7vh;
+  height: 7vh;
+}
 
+.call-icon-contacts,
 .video-call-icon-contacts {
-  width: 3.6vh;
-  height: 3.6vh;
+  width: 2.8vh;
+  height: 2.8vh;
+  border-radius: 50%;
+  padding: 12px;
+  opacity: 0.7;
+}
+.call-icon-contacts:hover,
+.video-call-icon-contacts:hover {
+  width: 2.8vh;
+  height: 2.8vh;
+  border-radius: 50%;
+  padding: 12px;
+  opacity: 0.9;
 }
 .call-icon-contacts {
-  width:6vh;
-  height:6vh;
+  color: var(--btn-color-success);
+  background-color: var(--btn-bg-success);
 }
+
+.video-call-icon-contacts {
+  color: var(--btn-color-success);
+  background-color: var(--btn-bg-success);
+}
+
 .error-message {
   color: #d32f2f;
   text-align: center;
@@ -105,4 +281,103 @@
   text-align: center;
   color: #666;
   margin-top: 20px;
+}
+
+/* ===================== MODIFICATIONS REQUISES ===================== */
+
+/* Alignement des icônes et bouton de filtre horizontalement */
+.sort-options {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start; /* Aligner tout à gauche */
+  margin-top: 20px;
+}
+
+.sort-option {
+  font-size: 24px;
+  cursor: pointer;
+  transition: transform 0.3s ease, color 0.3s ease, background-color 0.3s ease;
+  padding: 8px;
+  border-radius: 8px;
+  color: #333; /* Couleur de l'icône */
+  margin-right: 15px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.sort-option, .sort-order {
+  font-size: 24px; /* Taille d'icône uniforme */
+  cursor: pointer;
+  transition: transform 0.3s ease, color 0.3s ease;
+  padding: 8px;
+  border-radius: 8px; /* Coins arrondis pour les icônes */
+  color: #333; /* Couleur des icônes */
+}
+
+.sort-option:hover {
+  transform: scale(1.1);
+  color: #007bff;
+  background-color: #e0e0e0;
+}
+
+.sort-order {
+  margin-left: 20px; /* Décaler vers la droite */
+}
+
+/* Appliquer un curseur pointer sur les icônes */
+.sort-option, .sort-order {
+  cursor: pointer;
+}
+
+.sort-option.active {
+  color: #007bff; /* Exemple de couleur pour l'icône active */
+}
+.sort-group-alpha {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  left: 0px;
+  align-self: center;
+  position: absolute;
+  margin-left: 8vh;
+  margin-bottom: 1.75vh;
+}
+
+/* Groupe 2 : Flèches Croissant/Décroissant */
+.sort-group-order {
+  display: flex;
+  align-items: center;
+}
+
+/* Les icônes */
+.sort-option, .sort-order {
+  font-size: 20px;
+  cursor: pointer;
+  transition: transform 0.3s ease, color 0.3s ease;
+  padding: 8px;
+  border-radius: 8px;
+  color: var(--primary-bg-color);
+}
+
+/* Styles des icônes au survol */
+.sort-option:hover, .sort-order:hover {
+  transform: scale(1.1);
+  color: #007bff;
+  background-color: #e0e0e0;
+}
+/* Décalage supplémentaire des flèches asc/desc à droite */
+
+
+/* On peut aussi styliser les flèches pour les rendre plus grandes si nécessaire */
+.sort-order svg {
+  width: 24px;
+  height: 24px;
+}
+.sort-option.active {
+  color: midnightblue; /* Couleur de l'icône active */
+  background-color: #e0e0e0; /* Fond clair lorsqu'elle est active */
+  transform: scale(1.1); /* Agrandissement plus important de l'icône active */
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3); /* Ombre subtile autour de l'icône active */
+  transition: transform 0.3s ease, box-shadow 0.3s ease, color 0.3s ease, background-color 0.3s ease; /* Animation douce */
 }
