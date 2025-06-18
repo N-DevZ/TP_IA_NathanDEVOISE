@@ -10,14 +10,19 @@
   flex-direction: column;
   overflow: hidden;
 }
-
+.contact-details {
+  display: flex;
+  flex-direction: column;
+}
 .contact-directory h2 {
   color: var(--primary-bg-color);
   font-size: 24px;
   margin-bottom: 20px;
   text-align: center;
 }
-
+.status-container {
+  margin-right: 10px;
+}
 .contact-list-container {
   flex-grow: 1;
   overflow-y: auto;
@@ -79,7 +84,26 @@
   height: 5vh;
   margin-bottom: 5vh;
 }
+.status-dot {
+  font-size: 12px !important;
+}
 
+.status-online {
+  color: #4caf50; /* Vert pour en ligne */
+}
+
+.status-offline {
+  color: #9e9e9e; /* Gris pour hors ligne */
+}
+
+.status-dnd {
+  color: #f44336; /* Rouge pour ne pas déranger */
+}
+
+.contact-info {
+  display: flex;
+  align-items: center;
+}
 /* Style des icônes dans le conteneur */
 .sort-option, .sort-order {
   font-size: 24px; /* Taille d'icône uniforme */
@@ -154,7 +178,7 @@
 
 .contact-info {
   display: flex;
-  flex-direction: column;
+  flex-direction: line;
 }
 
 .contact-name-extension {
@@ -171,7 +195,6 @@
 .contact-extension {
   font-size: 18px;
   color: var(--btn-color-keypad);
-  margin-top: 2px;
 }
 
 .contact-number {

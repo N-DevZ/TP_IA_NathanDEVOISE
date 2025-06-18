@@ -1,19 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import './ContactDirectory.css';
-import { MdPhoneInTalk, MdVideocam, MdPhoneForwarded, MdFilterAlt, MdSortByAlpha, MdFormatListNumbered, MdKeyboardArrowUp, MdKeyboardArrowDown } from 'react-icons/md';
+import { MdPhoneInTalk, MdVideocam, MdPhoneForwarded, MdFilterAlt, MdSortByAlpha, MdFormatListNumbered, MdKeyboardArrowUp, MdKeyboardArrowDown, MdFiberManualRecord } from 'react-icons/md';
 
 function ContactDirectory({ onCallContact, onVideoCallContact, isTransferMode, handleTransferClick, t, token, title }) {
-  const [contacts, setContacts] = useState([]); // Liste complète des contacts
+  const [contacts, setContacts] = useState([]);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [filteredContacts, setFilteredContacts] = useState([]); // Liste filtrée des contacts
-  const [searchTerm, setSearchTerm] = useState(''); // Terme de recherche
+  const [filteredContacts, setFilteredContacts] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [showFilterOptions, setShowFilterOptions] = useState(false);
   const [filterOption, setFilterOption] = useState('name');
   const [sortOrder, setSortOrder] = useState('asc');
   const [showSortOptions, setShowSortOptions] = useState(false);
 
-  // Récupération des contacts depuis l'API
   useEffect(() => {
     const fetchContacts = async () => {
       if (!token) {
@@ -34,16 +33,16 @@ function ContactDirectory({ onCallContact, onVideoCallContact, isTransferMode, h
         }
 
         const data = await response.json();
-
-        const formattedContacts = data.map((user, index) => ({
-          id: user.id || index + 1,
+        const contactsWithStatus = data.map(user => ({
+          id: user.id,
           name: `${user.prenom || ''} ${user.nom || ''}`.trim(),
           number: user.name,
           extension: user.extension,
+          status: user.status || 'offline'
         }));
 
-        setContacts(formattedContacts);
-        setFilteredContacts(formattedContacts); // Par défaut, afficher tous les contacts
+        setContacts(contactsWithStatus);
+        setFilteredContacts(contactsWithStatus);
         setError(null);
       } catch (error) {
         console.error(t("contactsFetchError"), error);
@@ -56,13 +55,10 @@ function ContactDirectory({ onCallContact, onVideoCallContact, isTransferMode, h
     fetchContacts();
   }, [token, t]);
 
-  // Effet de filtrage : On applique le filtre uniquement si le champ de recherche n'est pas vide
   useEffect(() => {
     if (searchTerm.trim() === '') {
-      // Si le champ est vide, afficher tous les contacts
       setFilteredContacts(contacts);
     } else {
-      // Sinon, on applique le filtre
       const filtered = contacts.filter(contact =>
         contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         contact.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -72,7 +68,6 @@ function ContactDirectory({ onCallContact, onVideoCallContact, isTransferMode, h
     }
   }, [searchTerm, contacts]);
 
-  // Effet de tri : Applique le tri sur filteredContacts uniquement après le filtrage
   useEffect(() => {
     let sortedContacts = [...filteredContacts];
     if (filterOption === 'name') {
@@ -93,9 +88,8 @@ function ContactDirectory({ onCallContact, onVideoCallContact, isTransferMode, h
       });
     }
     setFilteredContacts(sortedContacts);
-  }, [filterOption, sortOrder]); // Ne dépend plus de filteredContacts
+  }, [filterOption, sortOrder]);
 
-  // Met en surbrillance le texte recherché dans les résultats
   const highlightText = (text, highlight) => {
     if (!highlight.trim()) {
       return <span>{text}</span>;
@@ -111,7 +105,6 @@ function ContactDirectory({ onCallContact, onVideoCallContact, isTransferMode, h
     );
   };
 
-  // Change les options de filtrage
   const handleFilterClick = () => {
     setShowSortOptions(!showSortOptions);
   };
@@ -125,7 +118,7 @@ function ContactDirectory({ onCallContact, onVideoCallContact, isTransferMode, h
   };
 
   const handleSearchChange = (e) => {
-    setSearchTerm(e.target.value); // Mise à jour du terme de recherche
+    setSearchTerm(e.target.value);
   };
 
   if (error) {
@@ -190,12 +183,17 @@ function ContactDirectory({ onCallContact, onVideoCallContact, isTransferMode, h
             {filteredContacts.map((contact) => (
               <li key={contact.id} className="contact-item">
                 <div className="contact-info">
-                  <div className="contact-name-extension">
-                    <span className="contact-name">{highlightText(contact.name, searchTerm)}</span>
-                    <span className="contact-extension">{highlightText(contact.number, searchTerm)}</span>
-                  </div>
-                  <span className="contact-number">{highlightText(contact.extension, searchTerm)}</span>
-                </div>
+      <div className="status-container">
+        <MdFiberManualRecord className={`status-dot status-${contact.status}`} />
+      </div>
+      <div className="contact-details">
+        <div className="contact-name-extension">
+          <span className="contact-name">{highlightText(contact.name, searchTerm)}</span>
+          <span className="contact-extension">{highlightText(contact.extension, searchTerm)}</span>
+        </div>
+        <span className="contact-number">{highlightText(contact.number, searchTerm)}</span>
+      </div>
+    </div>
                 <div className="contact-actions">
                   {!isTransferMode ? (
                     <>
