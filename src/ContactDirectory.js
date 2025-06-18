@@ -3,16 +3,17 @@ import './ContactDirectory.css';
 import { MdPhoneInTalk, MdVideocam, MdPhoneForwarded, MdFilterAlt, MdSortByAlpha, MdFormatListNumbered, MdKeyboardArrowUp, MdKeyboardArrowDown } from 'react-icons/md';
 
 function ContactDirectory({ onCallContact, onVideoCallContact, isTransferMode, handleTransferClick, t, token, title }) {
-  const [contacts, setContacts] = useState([]);
+  const [contacts, setContacts] = useState([]); // Liste complète des contacts
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [filteredContacts, setFilteredContacts] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredContacts, setFilteredContacts] = useState([]); // Liste filtrée des contacts
+  const [searchTerm, setSearchTerm] = useState(''); // Terme de recherche
   const [showFilterOptions, setShowFilterOptions] = useState(false);
   const [filterOption, setFilterOption] = useState('name');
   const [sortOrder, setSortOrder] = useState('asc');
   const [showSortOptions, setShowSortOptions] = useState(false);
 
+  // Récupération des contacts depuis l'API
   useEffect(() => {
     const fetchContacts = async () => {
       if (!token) {
@@ -22,9 +23,9 @@ function ContactDirectory({ onCallContact, onVideoCallContact, isTransferMode, h
       }
 
       try {
-        const response = await fetch('http://192.168.1.201:3000/users', {
+        const response = await fetch('http://192.168.1.34:3000/users', {
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${token}`,
           },
         });
 
@@ -55,13 +56,13 @@ function ContactDirectory({ onCallContact, onVideoCallContact, isTransferMode, h
     fetchContacts();
   }, [token, t]);
 
+  // Effet de filtrage : On applique le filtre uniquement si le champ de recherche n'est pas vide
   useEffect(() => {
-    // Filtrage des contacts en fonction du terme de recherche
     if (searchTerm.trim() === '') {
-      // Si la barre de recherche est vide, on affiche tous les contacts
+      // Si le champ est vide, afficher tous les contacts
       setFilteredContacts(contacts);
     } else {
-      // Sinon, on applique un filtre basé sur le terme de recherche
+      // Sinon, on applique le filtre
       const filtered = contacts.filter(contact =>
         contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         contact.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -71,15 +72,15 @@ function ContactDirectory({ onCallContact, onVideoCallContact, isTransferMode, h
     }
   }, [searchTerm, contacts]);
 
+  // Effet de tri : Applique le tri sur filteredContacts uniquement après le filtrage
   useEffect(() => {
-    // Trie les contacts en fonction du `filterOption` et `sortOrder`
     let sortedContacts = [...filteredContacts];
     if (filterOption === 'name') {
       sortedContacts.sort((a, b) => {
         if (sortOrder === 'asc') {
-          return a.number.localeCompare(b.number);
+          return a.name.localeCompare(b.name);
         } else {
-          return b.number.localeCompare(a.number);
+          return b.name.localeCompare(a.name);
         }
       });
     } else if (filterOption === 'extension') {
@@ -92,8 +93,9 @@ function ContactDirectory({ onCallContact, onVideoCallContact, isTransferMode, h
       });
     }
     setFilteredContacts(sortedContacts);
-  }, [filterOption, sortOrder, filteredContacts]);
+  }, [filterOption, sortOrder]); // Ne dépend plus de filteredContacts
 
+  // Met en surbrillance le texte recherché dans les résultats
   const highlightText = (text, highlight) => {
     if (!highlight.trim()) {
       return <span>{text}</span>;
@@ -109,6 +111,7 @@ function ContactDirectory({ onCallContact, onVideoCallContact, isTransferMode, h
     );
   };
 
+  // Change les options de filtrage
   const handleFilterClick = () => {
     setShowSortOptions(!showSortOptions);
   };
@@ -180,7 +183,7 @@ function ContactDirectory({ onCallContact, onVideoCallContact, isTransferMode, h
       </div>
 
       <div className="contact-list-container">
-        {searchTerm && filteredContacts.length === 0 ? (
+        {filteredContacts.length === 0 && searchTerm.trim() === '' ? (
           <p>{t("noContactsFound")}</p>
         ) : (
           <ul className="contact-list">

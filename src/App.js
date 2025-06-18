@@ -24,7 +24,7 @@ import disablemicroicon from './assets/disablemicro.png';
 
 
 import { FaPhone, FaPhoneVolume, FaVideo } from 'react-icons/fa';
-import { MdPhoneInTalk, MdVideocam, MdVideocamOff, MdCallEnd, MdMic, MdMicOff, MdPhoneForwarded, MdBedtime, MdBedtimeOff, MdEdit, MdRemoveRedEye, MdExpandMore, MdExpandLess, MdBrush, MdSettings  } from 'react-icons/md';
+import { MdPhoneInTalk, MdVideocam, MdVideocamOff, MdCallEnd, MdMic, MdMicOff, MdPhoneForwarded, MdBedtime, MdBedtimeOff, MdEdit, MdRemoveRedEye, MdExpandMore, MdExpandLess, MdBrush, MdSettings } from 'react-icons/md';
 // Activation du débogage JsSIP
 JsSIP.debug.enable('JsSIP:*');
 
@@ -55,7 +55,7 @@ function App() {
   const [callTo, setCallTo] = useState('');
   const [showTransferPopup, setShowTransferPopup] = useState(false);
 
-    const [expandedSection, setExpandedSection] = useState('display');
+  const [expandedSection, setExpandedSection] = useState('display');
 
   const [isVideoEnabled, setIsVideoEnabled] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -117,7 +117,7 @@ function App() {
     'be': 'BY',
     'af': 'ZA'
   };
-   const toggleSection = (section) => {
+  const toggleSection = (section) => {
     setExpandedSection(expandedSection === section ? null : section);
   };
   const [isEditing, setIsEditing] = useState(false);
@@ -125,7 +125,7 @@ function App() {
   // TODO 2 tokens + fichiers de configurations avec les identifiants auth2.0.
   const generateToken = useCallback(async () => {
     try {
-      const response = await fetch('http://192.168.1.201:3000/auth/token', {
+      const response = await fetch('http://localhost:3000/auth/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -166,19 +166,43 @@ function App() {
       setIsLoggedIn(true);
     }
   }, []);
+
+  const updateUserStatus = useCallback(async (status) => {
+    if (!token || !username) return;
+
+    try {
+      const response = await fetch(`http://localhost:3000/users/${username}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update user status');
+      }
+
+      console.log(`User status updated to: ${status}`);
+    } catch (error) {
+      console.error('Error updating user status:', error);
+    }
+  }, [token, username]);
+
   // Fonction de connexion
   const handleLogin = useCallback((extension, password) => {
     setUsername(extension);
 
     // Configuration SIP
-    const socket = new JsSIP.WebSocketInterface('ws://192.168.1.201:5066');
+    const socket = new JsSIP.WebSocketInterface('ws://192.168.1.34:5066');
     const configuration = {
       sockets: [socket],
-      uri: `sip:${extension}@192.168.1.201:5070`,
+      uri: `sip:${extension}@192.168.1.34:5070`,
       password: password,
       sessionTimersExpires: 600,
       register: true,
-      registrar_server: 'sip:192.168.1.201',
+      registrar_server: 'sip:192.168.1.34',
       pcConfig: {
         iceServers: [
           { urls: ['stun:stun.freeswitch.org'] },
@@ -197,7 +221,7 @@ function App() {
     const ua = new JsSIP.UA(configuration);
     setInterval(() => {
       if (ua.isRegistered()) {
-        ua.sendOptions(`sip:${extension}@192.168.1.201:5070`);
+        ua.sendOptions(`sip:${extension}@192.168.1.34:5070`);
       }
     }, 30000);
     // Gestion des événements de l'agent utilisateur
@@ -215,6 +239,7 @@ function App() {
       setRegistrationStatus('Registered');
       setIsLoggedIn(true);
       setConnectionFailed(false);
+        updateUserStatus('online'); // Met à jour le statut après l'enregistrement
     });
     ua.on('unregistered', () => {
       setRegistrationStatus('Unregistered');
@@ -306,11 +331,13 @@ function App() {
         };
       });
     });
+    updateUserStatus('online');
 
 
     setUserAgent(ua);
     ua.start();
-  }, []);
+
+  }, [updateUserStatus]);
 
   const attemptReconnection = useCallback(() => {
     if (userAgent && !userAgent.isRegistered()) {
@@ -351,7 +378,11 @@ function App() {
     };
   }, [userAgent]);
   const handleDoNotDisturb = () => {
+    const newStatus = doNotDisturb ? 'online' : 'dnd';
+
     setDoNotDisturb(prevState => !prevState);
+    updateUserStatus(newStatus);
+
   };
 
 
@@ -384,8 +415,8 @@ function App() {
         sessionTimersExpires: 600
       };
 
-      console.log('Initiating call to:', `sip:${callTo}@192.168.1.201:5070`);
-      const newSession = userAgent.call(`sip:${callTo}@192.168.1.201:5070`, options);
+      console.log('Initiating call to:', `sip:${callTo}@192.168.1.34:5070`);
+      const newSession = userAgent.call(`sip:${callTo}@192.168.1.34:5070`, options);
       setSession(newSession);
       setCallStatus('Calling...');
       setIsVideoEnabled(withVideo);
@@ -636,7 +667,7 @@ function App() {
   const fetchCallHistory = useCallback(async () => {
     if (token && username) {
       try {
-        const response = await fetch(`http://192.168.1.201:3000/cdr/${username}`, {
+        const response = await fetch(`http://192.168.1.34:3000/cdr/${username}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
@@ -655,9 +686,10 @@ function App() {
   // Appeler fetchCallHistory après la connexion et après chaque appel
   useEffect(() => {
     if (isLoggedIn) {
+          updateUserStatus('online');
       fetchCallHistory();
     }
-  }, [isLoggedIn, fetchCallHistory]);
+  }, [isLoggedIn, fetchCallHistory, updateUserStatus]);
   const handleRefresh = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -736,7 +768,7 @@ function App() {
             : utcNow;
 
           const cdrData = {
-            local_ip_v4: '192.168.1.201', // Remplacez par l'IP réelle
+            local_ip_v4: '192.168.1.34', // Remplacez par l'IP réelle
             caller_id_name: session.remote_identity?.display_name || '',
             caller_id_number: session.remote_identity?.uri?.user || '',
             destination_number: session.local_identity?.uri?.user || '',
@@ -756,7 +788,7 @@ function App() {
             ani: session.local_identity?.uri?.user || '',
           };
 
-          const response = await fetch('http://192.168.1.201:3000/cdr', {
+          const response = await fetch('http://192.168.1.34:3000/cdr', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -787,12 +819,24 @@ function App() {
 
     setIsLoggedIn(false);
     setUsername('');
+    updateUserStatus('offline');
+
     setCallTo('');
     setRegistrationStatus('');
     setCallStatus('');
     setIsVideoEnabled(false);
-  }, [userAgent]);
+  }, [userAgent, updateUserStatus]);
+useEffect(() => {
+  const handleBeforeUnload = () => {
+    updateUserStatus('offline');
+  };
 
+  window.addEventListener('beforeunload', handleBeforeUnload);
+
+  return () => {
+    window.removeEventListener('beforeunload', handleBeforeUnload);
+  };
+}, [updateUserStatus]);
   // Fonction pour gérer l'appui sur une touche du clavier numérique
   const handleKeyPress = useCallback((key) => {
     setCallTo(prevCallTo => prevCallTo + key);
@@ -843,16 +887,16 @@ function App() {
     setIsTransferMode(true);
     setCurrentPage('contacts');
   };
-const handleTransferPopupOpen = () => {
-  setShowTransferPopup(true);
-};
+  const handleTransferPopupOpen = () => {
+    setShowTransferPopup(true);
+  };
   const handleTransferToContact = (contactNumber) => {
-  if (session) {
-    session.refer(`sip:${contactNumber}@192.168.1.201:5070`);
-    setIsTransferMode(false);
-    setShowTransferPopup(false);
-  }
-};
+    if (session) {
+      session.refer(`sip:${contactNumber}@192.168.1.34:5070`);
+      setIsTransferMode(false);
+      setShowTransferPopup(false);
+    }
+  };
   // Rendu de l'interface utilisateur principale
   return (
     <div className={`app-container ${theme} ${doNotDisturb ? 'dnd-active' : ''}`}>
@@ -972,13 +1016,13 @@ const handleTransferPopupOpen = () => {
                           >
                             {isAudioEnabled ? <MdMic /> : <MdMicOff />}
                           </button>
-                          <button 
-  className="btn-circle-transfer" 
-  onClick={handleTransferPopupOpen}
-  title={t('Transfer')}
->
-  <MdPhoneForwarded />
-</button>
+                          <button
+                            className="btn-circle-transfer"
+                            onClick={handleTransferPopupOpen}
+                            title={t('Transfer')}
+                          >
+                            <MdPhoneForwarded />
+                          </button>
                         </>
                       )}
                     </>
@@ -1004,42 +1048,42 @@ const handleTransferPopupOpen = () => {
               <CallHistory history={callHistory} username={username} t={t} />
             )}
             {currentPage === 'contacts' && (
-  <ContactDirectory 
-    onCallContact={handleCallContact}
-    onVideoCallContact={handleVideoCallContact}
-    isTransferMode={isTransferMode}
-    onTransfer={handleTransferToContact}
-    t={t}
-    token={token}
-  />
-)}
+              <ContactDirectory
+                onCallContact={handleCallContact}
+                onVideoCallContact={handleVideoCallContact}
+                isTransferMode={isTransferMode}
+                onTransfer={handleTransferToContact}
+                t={t}
+                token={token}
+              />
+            )}
 
-{/* Nouvelle pop-up de transfert */}
+            {/* Nouvelle pop-up de transfert */}
 
 
-{showTransferPopup && (
-  <div className="transfer-popup">
-    <div className="transfer-popup-content">
-      <button className="close-popup" onClick={() => setShowTransferPopup(false)}>×</button>
-      <button 
-        className="eye-icon" 
-        onMouseEnter={() => document.querySelector('.transfer-popup-content').style.opacity = '0.05'}
-        onMouseLeave={() => document.querySelector('.transfer-popup-content').style.opacity = '1'}
-      >
-        <MdRemoveRedEye />
-      </button>
-      <ContactDirectory 
-        onCallContact={handleCallContact}
-        onVideoCallContact={handleVideoCallContact}
-        isTransferMode={true}
-        onTransfer={handleTransferToContact}
-        t={t}
-        token={token}
-        title={t('Transfer')} // Ajoutez cette ligne
-      />
-    </div>
-  </div>
-)}
+            {showTransferPopup && (
+              <div className="transfer-popup">
+                <div className="transfer-popup-content">
+                  <button className="close-popup" onClick={() => setShowTransferPopup(false)}>×</button>
+                  <button
+                    className="eye-icon"
+                    onMouseEnter={() => document.querySelector('.transfer-popup-content').style.opacity = '0.05'}
+                    onMouseLeave={() => document.querySelector('.transfer-popup-content').style.opacity = '1'}
+                  >
+                    <MdRemoveRedEye />
+                  </button>
+                  <ContactDirectory
+                    onCallContact={handleCallContact}
+                    onVideoCallContact={handleVideoCallContact}
+                    isTransferMode={true}
+                    onTransfer={handleTransferToContact}
+                    t={t}
+                    token={token}
+                    title={t('Transfer')} // Ajoutez cette ligne
+                  />
+                </div>
+              </div>
+            )}
             {currentPage === 'profile' && (
               <div className="profile-page">
                 <div className="profile-header">
@@ -1060,7 +1104,7 @@ const handleTransferPopupOpen = () => {
                       alt={t('profilePicture')}
                       className="profile-photo"
                     />
-                    
+
                   </div>
                   <h2 className="profile-name">{profile.name || username}</h2>
                 </div>
@@ -1130,119 +1174,119 @@ const handleTransferPopupOpen = () => {
               </div>
             )}
             {currentPage === 'settings' && (
-  <div className="settings-page">
-    <h2><MdSettings /> {t('settings')}</h2>
-    
-    <div className={`settings-section ${expandedSection === 'appearance' ? 'expanded' : ''}`}>
-      <div className="section-header" onClick={() => toggleSection('appearance')}>
-        <h3><MdBrush /> {t('appearance')}</h3>
-        {expandedSection === 'appearance' ? <MdExpandLess /> : <MdExpandMore />}
-      </div>
-      {expandedSection === 'appearance' && (
-        <div className="section-content">
-          <div className="setting-item">
-            <label htmlFor="theme-select">{t('theme')}:</label>
-            <select
-              id="theme-select"
-              value={theme}
-              onChange={(e) => handleThemeChange(e.target.value)}
-            >
-              <option value="light">{t('light')}</option>
-              <option value="dark">{t('dark')}</option>
-            </select>
-          </div>
-          <div className="setting-item">
-            <label htmlFor="language-select">{t('language')}:</label>
-            <select value={language} onChange={(e) => handleLanguageChange(e.target.value)}>
-                      <option value="en">English</option>
-                      <option value="fr">Français</option>
-                      <option value="es">Español</option>
-                      <option value="de">Deutsch</option>
-                      <option value="it">Italiano</option>
-                      <option value="pt">Português</option>
-                      <option value="nl">Nederlands</option>
-                      <option value="ru">Русский</option>
-                      <option value="ja">日本語</option>
-                      <option value="ko">한국어</option>
-                      <option value="ar">العربية</option>
-                      <option value="zh">中文</option>
-                      <option value="uk">Українська</option>
-                      <option value="pl">Polski</option>
-                      <option value="tr">Türkçe</option>
-                      <option value="vi">Tiếng Việt</option>
-                      <option value="ro">Română</option>
-                      <option value="sv">Svenska</option>
-                      <option value="no">Norsk</option>
-                      <option value="fi">Suomi</option>
-                      <option value="el">Ελληνικά</option>
-                      <option value="hu">Magyar</option>
-                      <option value="sr">Српски</option>
-                      <option value="id">Bahasa Indonesia</option>
-                      <option value="ur">اردو</option>
-                      <option value="hr">Hrvatski</option>
-                      <option value="is">Íslenska</option>
-                      <option value="et">Eesti</option>
-                      <option value="lt">Lietuvių</option>
-                      <option value="be">Беларуская</option>
-                      <option value="af">Afrikaans</option>
-                    </select>
-          </div>
-        </div>
-      )}
-    </div>
+              <div className="settings-page">
+                <h2><MdSettings /> {t('settings')}</h2>
 
-    <div className={`settings-section ${expandedSection === 'audioAndVideo' ? 'expanded' : ''}`}>
-      <div className="section-header" onClick={() => toggleSection('audioAndVideo')}>
-        <h3><MdSettings /> {t('audioAndVideo')}</h3>
-        {expandedSection === 'audioAndVideo' ? <MdExpandLess /> : <MdExpandMore />}
-      </div>
-      {expandedSection === 'audioAndVideo' && (
-        <div className="section-content">
-          <div className="setting-item">
-            <label htmlFor="audio-device-select">{t('audioInputDevice')}:</label>
-            <select
-              id="audio-device-select"
-              value={selectedAudioDevice}
-              onChange={(e) => setSelectedAudioDevice(e.target.value)}
-            >
-              {audioDevices.map((device) => (
-                <option key={device.deviceId} value={device.deviceId}>
-                  {device.label || `Microphone ${device.deviceId}`}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="setting-item">
-            <button className="test-audio" onClick={handleTestMicrophone}>
-              {isTestingMic ? t('stopMicrophoneTest') : t('testMicrophone')}
-            </button>
-            <canvas ref={audioVisualizerRef} className="audio-visualizer"></canvas>
-          </div>
-          <div className="setting-item">
-            <label htmlFor="video-device-select">{t('videoInputDevice')}:</label>
-            <select
-              id="video-device-select"
-              value={selectedVideoDevice}
-              onChange={(e) => setSelectedVideoDevice(e.target.value)}
-            >
-              {videoDevices.map((device) => (
-                <option key={device.deviceId} value={device.deviceId}>
-                  {device.label || `Camera ${device.deviceId}`}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="setting-item">
-            <button className="test-video" onClick={handleTestCamera}>
-              {isTestingVideo ? t('stopCameraTest') : t('testCamera')}
-            </button>
-            <video ref={videoPreviewRef} className="video-preview" autoPlay playsInline muted></video>
-          </div>
-        </div>
-      )}
-    </div>
-  </div>
-)}
+                <div className={`settings-section ${expandedSection === 'appearance' ? 'expanded' : ''}`}>
+                  <div className="section-header" onClick={() => toggleSection('appearance')}>
+                    <h3><MdBrush /> {t('appearance')}</h3>
+                    {expandedSection === 'appearance' ? <MdExpandLess /> : <MdExpandMore />}
+                  </div>
+                  {expandedSection === 'appearance' && (
+                    <div className="section-content">
+                      <div className="setting-item">
+                        <label htmlFor="theme-select">{t('theme')}:</label>
+                        <select
+                          id="theme-select"
+                          value={theme}
+                          onChange={(e) => handleThemeChange(e.target.value)}
+                        >
+                          <option value="light">{t('light')}</option>
+                          <option value="dark">{t('dark')}</option>
+                        </select>
+                      </div>
+                      <div className="setting-item">
+                        <label htmlFor="language-select">{t('language')}:</label>
+                        <select value={language} onChange={(e) => handleLanguageChange(e.target.value)}>
+                          <option value="en">English</option>
+                          <option value="fr">Français</option>
+                          <option value="es">Español</option>
+                          <option value="de">Deutsch</option>
+                          <option value="it">Italiano</option>
+                          <option value="pt">Português</option>
+                          <option value="nl">Nederlands</option>
+                          <option value="ru">Русский</option>
+                          <option value="ja">日本語</option>
+                          <option value="ko">한국어</option>
+                          <option value="ar">العربية</option>
+                          <option value="zh">中文</option>
+                          <option value="uk">Українська</option>
+                          <option value="pl">Polski</option>
+                          <option value="tr">Türkçe</option>
+                          <option value="vi">Tiếng Việt</option>
+                          <option value="ro">Română</option>
+                          <option value="sv">Svenska</option>
+                          <option value="no">Norsk</option>
+                          <option value="fi">Suomi</option>
+                          <option value="el">Ελληνικά</option>
+                          <option value="hu">Magyar</option>
+                          <option value="sr">Српски</option>
+                          <option value="id">Bahasa Indonesia</option>
+                          <option value="ur">اردو</option>
+                          <option value="hr">Hrvatski</option>
+                          <option value="is">Íslenska</option>
+                          <option value="et">Eesti</option>
+                          <option value="lt">Lietuvių</option>
+                          <option value="be">Беларуская</option>
+                          <option value="af">Afrikaans</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className={`settings-section ${expandedSection === 'audioAndVideo' ? 'expanded' : ''}`}>
+                  <div className="section-header" onClick={() => toggleSection('audioAndVideo')}>
+                    <h3><MdSettings /> {t('audioAndVideo')}</h3>
+                    {expandedSection === 'audioAndVideo' ? <MdExpandLess /> : <MdExpandMore />}
+                  </div>
+                  {expandedSection === 'audioAndVideo' && (
+                    <div className="section-content">
+                      <div className="setting-item">
+                        <label htmlFor="audio-device-select">{t('audioInputDevice')}:</label>
+                        <select
+                          id="audio-device-select"
+                          value={selectedAudioDevice}
+                          onChange={(e) => setSelectedAudioDevice(e.target.value)}
+                        >
+                          {audioDevices.map((device) => (
+                            <option key={device.deviceId} value={device.deviceId}>
+                              {device.label || `Microphone ${device.deviceId}`}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="setting-item">
+                        <button className="test-audio" onClick={handleTestMicrophone}>
+                          {isTestingMic ? t('stopMicrophoneTest') : t('testMicrophone')}
+                        </button>
+                        <canvas ref={audioVisualizerRef} className="audio-visualizer"></canvas>
+                      </div>
+                      <div className="setting-item">
+                        <label htmlFor="video-device-select">{t('videoInputDevice')}:</label>
+                        <select
+                          id="video-device-select"
+                          value={selectedVideoDevice}
+                          onChange={(e) => setSelectedVideoDevice(e.target.value)}
+                        >
+                          {videoDevices.map((device) => (
+                            <option key={device.deviceId} value={device.deviceId}>
+                              {device.label || `Camera ${device.deviceId}`}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="setting-item">
+                        <button className="test-video" onClick={handleTestCamera}>
+                          {isTestingVideo ? t('stopCameraTest') : t('testCamera')}
+                        </button>
+                        <video ref={videoPreviewRef} className="video-preview" autoPlay playsInline muted></video>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </main>
         </div>)}
       {showProfile && (
