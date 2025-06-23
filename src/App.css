@@ -1,18 +1,18 @@
 :root {
---btn-bg-success : lightgreen;
---btn-color-success :white;
---btn-bg-warning : orange;
---btn-color-warning: white;
---btn-bg-danger: red;
---btn-color-danger: white;
---btn-bg-keypad: lightgray;
---btn-color-keypad: #333;
---btn-color-dnd: grey;
---app-header-color: white;
---app-header-bg: lightgray;
---btn-bg-transfer: blue;
---btn-save: green;
---btn-modify: #2196F3;
+  --btn-bg-success: lightgreen;
+  --btn-color-success: white;
+  --btn-bg-warning: orange;
+  --btn-color-warning: white;
+  --btn-bg-danger: red;
+  --btn-color-danger: white;
+  --btn-bg-keypad: lightgray;
+  --btn-color-keypad: #333;
+  --btn-color-dnd: grey;
+  --app-header-color: white;
+  --app-header-bg: lightgray;
+  --btn-bg-transfer: blue;
+  --btn-save: green;
+  --btn-modify: #2196f3;
 }
 .app-container.light {
   --bg-color: #ffffff;
@@ -51,7 +51,7 @@
 .app-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
   font-family: Arial, sans-serif;
   background-color: var(--bg-color);
   color: var(--text-color);
@@ -59,9 +59,71 @@
 .app-container.dnd-active {
   position: relative;
 }
+.active-call {
+  position: absolute;
+  top:12.05vh;
+  width: 15vh;
+  background-color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  margin-left:6.05vh;
+  color: #333;
+  font-family: Arial, sans-serif;
+  justify-content: center;
+}
 
+.active-call h3 {
+  margin-top: 0;
+  color: #4a4a4a;
+  font-size: 18px;
+  border-bottom: 2px solid #4CAF50;
+  padding-bottom: 10px;
+}
+
+.active-call p {
+  font-size: 14px;
+  margin: 10px 0;
+}
+
+.active-call h4 {
+  font-size: 16px;
+  margin: 15px 0 5px;
+  color: #4CAF50;
+}
+
+.active-call ul {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+.active-call li {
+  font-size: 14px;
+  padding: 5px 0;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.active-call li:last-child {
+  border-bottom: none;
+}
+
+/* Animation d'entrée */
+@keyframes slideIn {
+  from {
+    left: -250px;
+    opacity: 0;
+  }
+  to {
+    left: 20px;
+    opacity: 1;
+  }
+}
+
+.active-call {
+  animation: slideIn 0.3s ease-out forwards;
+}
 .app-container.dnd-active::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -86,7 +148,6 @@
 }
 .app-main {
   flex: 1;
-  padding: 20px;
   overflow-y: auto;
 }
 
@@ -145,7 +206,6 @@
   align-items: center;
 }
 
-
 .connection-warning {
   color: var(--btn-bg-danger);
   margin-left: 5px;
@@ -164,7 +224,6 @@
   flex-direction: column;
   align-items: center;
   margin-bottom: 20px;
-  
 }
 
 .call-input {
@@ -233,7 +292,6 @@
   justify-content: center;
 }
 
-
 .video-container {
   display: flex;
   justify-content: space-between;
@@ -268,12 +326,11 @@
 
 /* Styles pour la page de profil */
 .profile-page {
-  max-width: 100vh;
   margin: 0 auto;
-  padding: 40px;
+  padding-inline: 20px;
+  height: 100vh;
   background-color: var(--secondary-bg-color);
-  border-radius: 8px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .profile-header {
@@ -311,14 +368,11 @@
   transition: opacity 0.3s ease;
   margin-left: 2.7%;
   margin-top: 2.7%;
-
 }
 
 .profile-photo-container:hover .profile-photo-overlay {
   opacity: 1;
 }
-
-
 
 .transfer-popup {
   position: fixed;
@@ -373,7 +427,6 @@
   opacity: 0.1;
 }
 
-
 .profile-name {
   font-size: 24px;
   font-weight: bold;
@@ -407,7 +460,7 @@
   border: none;
   cursor: pointer;
   font-size: 25px;
-  color: var(--btn-modify)
+  color: var(--btn-modify);
 }
 
 .profile-actions {
@@ -443,27 +496,67 @@
   background-color: var(--bg-color);
   padding: 20px;
   border-radius: 8px;
-  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
 /* Styles pour la page de paramètres */
 .settings-page {
   display: flex;
   flex-direction: column;
-  height: 80vh;
-  padding: 25px;
+  height: 100vh;
   overflow: hidden;
   margin: 0 auto;
-  background-color: var(--bg-color);
+  background-color: var(--secondary-bg-color);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   color: var(--text-color);
-  border-radius: 10px;
+}
+.btn-circle-invite {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.3s;
 }
 
+.btn-circle-invite:hover {
+  background-color: #45a049;
+}
+
+.invite-popup {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.invite-popup-content {
+  background-color: white;
+  padding: 20px;
+  border-radius: 5px;
+  max-width: 80%;
+  max-height: 80%;
+  overflow-y: auto;
+}
 .settings-page h2 {
   display: flex;
   align-items: center;
   font-size: 24px;
-  margin-bottom: 20px;
-  color: var(--primary-bg-color);
+  padding:15.91px;
+  margin-top: 0;
+  color: white;
+  background-color: var(--primary-color);
 }
 
 .settings-page h2 svg {
@@ -481,6 +574,29 @@
   padding-bottom: 10px;
   margin-bottom: 20px;
   color: var(--btn-bg-green);
+}
+.transfer-popup {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.transfer-popup-content {
+  background-color: white;
+  padding: 20px;
+  border-radius: 5px;
+  position: relative;
+  width: 80%;
+  max-width: 500px;
+  max-height: 80%;
+  overflow-y: auto;
 }
 .section-content {
   padding: 15px;
@@ -513,7 +629,7 @@
   padding: 10px 20px;
   background-color: var(--app-header-bg);
   border-top: 1px solid #ccc;
-  margin-inline:35px;
+  margin-inline: 35px;
 }
 
 .settings-footer button {
@@ -567,23 +683,23 @@
   background-color: var(--primary-hover-color);
 }
 .test-video {
- padding: 12px 24px;
+  padding: 12px 24px;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   font-size: 16px;
-  background-color: #2196F3;
+  background-color: #2196f3;
   color: white;
   transition: background-color 0.3s ease;
 }
 
-.test-audio{
-   padding: 12px 24px;
+.test-audio {
+  padding: 12px 24px;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   font-size: 16px;
-  background-color: #2196F3;
+  background-color: #2196f3;
   color: white;
   transition: background-color 0.3s ease;
 }
@@ -612,7 +728,7 @@
   cursor: pointer;
   background-color: transparent;
   color: transparent;
-  position : absolute;
+  position: absolute;
   right: 1vh;
   top: 3.5vh;
   transform: translateY(-50%);
@@ -643,7 +759,6 @@
   cursor: pointer;
   background-color: var(--btn-bg-transfer);
   color: var(--btn-color-danger);
-  
 }
 .btn-success {
   background-color: var(--btn-bg-success);
@@ -668,7 +783,7 @@ button.btn-success-videocall {
   width: 6.5vh;
   height: 6.5vh;
   border-radius: 50%;
- 
+
   padding: 0;
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
@@ -698,7 +813,7 @@ button.btn-success-micro:not(.active) {
   border: 3px solid var(--btn-bg-danger);
 }
 .btn-success-micro::before {
-  content: '';
+  content: "";
   position: absolute;
   top: -2px;
   left: -2px;
@@ -777,7 +892,7 @@ button.btn-success-micro svg {
   margin-left: 1.14vh;
   border-radius: 50%;
   background-color: var(--btn-bg-success);
-  color: var(--btn-color-success)
+  color: var(--btn-color-success);
 }
 
 .call-controls .video-call-button .video-call-icon {
@@ -831,7 +946,6 @@ button.btn-success-micro svg {
   width: 6.1vh;
   height: 6.1vh;
   margin-left: 0.1vh;
-
 }
 
 .call-controls .toggle-audio-button:not(.active) .control-icon {
@@ -861,13 +975,13 @@ button.btn-success-micro svg {
   border-radius: 4px;
   cursor: pointer;
   font-size: 16px;
-  background-color: #2196F3;
+  background-color: #2196f3;
   color: white;
   transition: background-color 0.3s ease;
 }
 
 .test-buttons button:hover {
-  background-color: #1976D2;
+  background-color: #1976d2;
 }
 
 .audio-visualizer,
@@ -887,6 +1001,26 @@ button.btn-success-micro svg {
   border-radius: 4px;
   object-fit: cover;
 }
+
+.admin-icon-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+}
+
+.admin-icon {
+   position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+  color: midnightblue;
+  opacity: 25%;
+  transition: opacity 0.3s ease;
+  height: 15vh;
+  width: 15vh;
+}
+
 
 #transfer-button {
   background-color: #2d0055;

@@ -5,7 +5,7 @@
   "version": "0.1.0",
   "private": true,
   "main": "public/electron.js",
-  "proxy": "http://192.168.1.34:3000",
+  "proxy": "http://192.168.1.95:3000",
   "homepage": "./",
   "dependencies": {
     "@testing-library/jest-dom": "^5.16.5",

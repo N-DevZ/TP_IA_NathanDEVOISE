@@ -24,7 +24,7 @@ import disablemicroicon from './assets/disablemicro.png';
 
 
 import { FaPhone, FaPhoneVolume, FaVideo } from 'react-icons/fa';
-import { MdPhoneInTalk, MdVideocam, MdVideocamOff, MdCallEnd, MdMic, MdMicOff, MdPhoneForwarded, MdBedtime, MdBedtimeOff, MdEdit, MdRemoveRedEye, MdExpandMore, MdExpandLess, MdBrush, MdSettings } from 'react-icons/md';
+import { MdPhoneInTalk, MdVideocam, MdVideocamOff, MdCallEnd, MdMic, MdMicOff, MdPhoneForwarded, MdBedtime, MdBedtimeOff, MdEdit, MdRemoveRedEye, MdExpandMore, MdExpandLess, MdBrush, MdSettings, MdPersonAdd, MdLock, MdSecurity } from 'react-icons/md';
 // Activation du débogage JsSIP
 JsSIP.debug.enable('JsSIP:*');
 
@@ -39,6 +39,7 @@ function App() {
   // États pour gérer l'application
   const [userAgent, setUserAgent] = useState(null);
   const [callHistory, setCallHistory] = useState([]);
+  const [userInfo, setUserInfo] = useState(null);
   const [currentPage, setCurrentPage] = useState('home');
   const [isLoading, setIsLoading] = useState(false);
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
@@ -54,9 +55,11 @@ function App() {
   const [username, setUsername] = useState('');
   const [callTo, setCallTo] = useState('');
   const [showTransferPopup, setShowTransferPopup] = useState(false);
-
+  const [showAddExtensionPopup, setShowAddExtensionPopup] = useState(false);
+  const [extensionToAdd, setExtensionToAdd] = useState('');
   const [expandedSection, setExpandedSection] = useState('display');
-
+  const [callDuration, setCallDuration] = useState(0);
+  const [remotePartyName, setRemotePartyName] = useState('');
   const [isVideoEnabled, setIsVideoEnabled] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [doNotDisturb, setDoNotDisturb] = useState(false);
@@ -67,6 +70,7 @@ function App() {
   const [isTransferMode, setIsTransferMode] = useState(false);
   const [token, setToken] = useState(null);
   const [isTestingMic, setIsTestingMic] = useState(false);
+  const [participants, setParticipants] = useState([]);
   const [isTestingVideo, setIsTestingVideo] = useState(false);
   const audioVisualizerRef = useRef(null);
   const videoPreviewRef = useRef(null);
@@ -74,6 +78,7 @@ function App() {
   const [videoDevices, setVideoDevices] = useState([]);
   const [selectedAudioDevice, setSelectedAudioDevice] = useState('');
   const [selectedVideoDevice, setSelectedVideoDevice] = useState('');
+
   const t = (key) => translations[language][key] || key;
 
   const [profile, setProfile] = useState({
@@ -150,6 +155,24 @@ function App() {
       console.error('Error generating token:', error);
     }
   }, []);
+  const fetchUserInfo = useCallback(async () => {
+    if (token && username) {
+      try {
+        const response = await fetch(`http://192.168.1.95:3000/users/${username}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        if (!response.ok) {
+          throw new Error('Failed to fetch user info');
+        }
+        const data = await response.json();
+        setUserInfo(data);
+      } catch (error) {
+        console.error('Error fetching user info:', error);
+      }
+    }
+  }, [token, username]);
 
   // Générer le token au lancement de l'application
   useEffect(() => {
@@ -195,14 +218,16 @@ function App() {
     setUsername(extension);
 
     // Configuration SIP
-    const socket = new JsSIP.WebSocketInterface('ws://192.168.1.34:5066');
+    const socket = new JsSIP.WebSocketInterface('ws://192.168.1.95:5066');
     const configuration = {
       sockets: [socket],
-      uri: `sip:${extension}@192.168.1.34:5070`,
+      uri: `sip:${extension}@192.168.1.95:5070`,
       password: password,
       sessionTimersExpires: 600,
       register: true,
-      registrar_server: 'sip:192.168.1.34',
+      session_timers: false,
+
+      registrar_server: 'sip:192.168.1.95',
       pcConfig: {
         iceServers: [
           { urls: ['stun:stun.freeswitch.org'] },
@@ -221,7 +246,7 @@ function App() {
     const ua = new JsSIP.UA(configuration);
     setInterval(() => {
       if (ua.isRegistered()) {
-        ua.sendOptions(`sip:${extension}@192.168.1.34:5070`);
+        ua.sendOptions(`sip:${extension}@192.168.1.95:5070`);
       }
     }, 30000);
     // Gestion des événements de l'agent utilisateur
@@ -239,7 +264,7 @@ function App() {
       setRegistrationStatus('Registered');
       setIsLoggedIn(true);
       setConnectionFailed(false);
-        updateUserStatus('online'); // Met à jour le statut après l'enregistrement
+      updateUserStatus('online'); // Met à jour le statut après l'enregistrement
     });
     ua.on('unregistered', () => {
       setRegistrationStatus('Unregistered');
@@ -263,6 +288,8 @@ function App() {
       if (newSession.direction === 'incoming') {
         setIncomingCall(newSession);
         setCallStatus('Incoming call');
+        const callerName = newSession.remote_identity.display_name || newSession.remote_identity.uri.user;
+        setParticipants([{ name: callerName, extension: newSession.remote_identity.uri.user }]);
       } else {
         setSession(newSession);
         setCallStatus('Outgoing call');
@@ -385,7 +412,23 @@ function App() {
 
   };
 
+  useEffect(() => {
+    let timer;
+    if (session) {
+      timer = setInterval(() => {
+        setCallDuration(prev => prev + 1);
+      }, 1000);
+    } else {
+      setCallDuration(0);
+    }
+    return () => clearInterval(timer);
+  }, [session]);
 
+  const formatDuration = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
   // Fonction pour initier un appel
   const handleCall = useCallback(async (withVideo = false) => {
     if (!userAgent || !callTo) return;
@@ -415,15 +458,18 @@ function App() {
         sessionTimersExpires: 600
       };
 
-      console.log('Initiating call to:', `sip:${callTo}@192.168.1.34:5070`);
-      const newSession = userAgent.call(`sip:${callTo}@192.168.1.34:5070`, options);
+      console.log('Initiating call to:', `sip:${callTo}@192.168.1.95:5070`);
+      const newSession = userAgent.call(`sip:${callTo}@192.168.1.95:5070`, options);
       setSession(newSession);
       setCallStatus('Calling...');
       setIsVideoEnabled(withVideo);
+      setParticipants([{ name: callTo, extension: callTo }]);
 
       newSession.on('accepted', () => {
         console.log('Call accepted by remote party');
         setCallStatus('Call in progress');
+        const remoteName = newSession.remote_identity.display_name || callTo;
+        setParticipants([{ name: remoteName, extension: callTo }]);
       });
 
       newSession.on('confirmed', () => {
@@ -622,6 +668,58 @@ function App() {
     setCallTo(number);
     handleCall(true);  // true pourcall-icon un appel vidéo
   }, [setCallTo, handleCall]);
+
+  const handleAddExtension = useCallback(() => {
+    setShowAddExtensionPopup(true);
+  }, []);
+  const handleAddContactToCall = useCallback((contact) => {
+    if (session && contact.extension && userAgent) {
+      const conferenceId = session.data?.conferenceId || `conf_${Date.now()}`;
+
+      if (!session.data?.conferenceId) {
+        session.sendDTMF('*2');
+        session.data = { ...session.data, conferenceId };
+      }
+
+      const extraHeaders = [`Referred-By: <sip:${username}@192.168.1.95:5070>`];
+
+      if (session.remote_identity?.uri && session.remote_identity?.parameters?.tag && session.local_identity?.parameters?.tag) {
+        extraHeaders.push(`Join: ${session.remote_identity.uri};to-tag=${session.remote_identity.parameters.tag};from-tag=${session.local_identity.parameters.tag}`);
+      }
+
+      const options = {
+        extraHeaders: [
+          ...extraHeaders,
+          'Session-Expires: 600',
+          'Min-SE: 120'
+        ],
+        mediaConstraints: { audio: true, video: false },
+        rtcOfferConstraints: {
+          offerToReceiveAudio: 1,
+          offerToReceiveVideo: 0
+        },
+        pcConfig: {
+          iceServers: [{ urls: ['stun:stun.freeswitch.org'] }],
+          iceTransportPolicy: 'all',
+        },
+        sessionTimersExpires: 600
+      };
+
+      try {
+        const newSession = userAgent.call(`sip:${contact.extension}@192.168.1.95:5070`, options);
+
+        newSession.on('accepted', () => {
+          console.log(`Extension ${contact.extension} added to conference ${conferenceId}`);
+          setParticipants(prevParticipants => [...prevParticipants, contact]);
+
+        });
+
+        setShowAddExtensionPopup(false);
+      } catch (error) {
+        console.error('Error initiating call:', error);
+      }
+    }
+  }, [session, username, userAgent]);
   // Fonction pour répondre à un appel entrant
   const handleAnswer = useCallback(async () => {
     if (incomingCall) {
@@ -667,7 +765,7 @@ function App() {
   const fetchCallHistory = useCallback(async () => {
     if (token && username) {
       try {
-        const response = await fetch(`http://192.168.1.34:3000/cdr/${username}`, {
+        const response = await fetch(`http://192.168.1.95:3000/cdr/${username}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
@@ -686,8 +784,9 @@ function App() {
   // Appeler fetchCallHistory après la connexion et après chaque appel
   useEffect(() => {
     if (isLoggedIn) {
-          updateUserStatus('online');
+      updateUserStatus('online');
       fetchCallHistory();
+      fetchUserInfo(); // Ajoutez cette ligne
     }
   }, [isLoggedIn, fetchCallHistory, updateUserStatus]);
   const handleRefresh = useCallback(async () => {
@@ -768,7 +867,7 @@ function App() {
             : utcNow;
 
           const cdrData = {
-            local_ip_v4: '192.168.1.34', // Remplacez par l'IP réelle
+            local_ip_v4: '192.168.1.95', // Remplacez par l'IP réelle
             caller_id_name: session.remote_identity?.display_name || '',
             caller_id_number: session.remote_identity?.uri?.user || '',
             destination_number: session.local_identity?.uri?.user || '',
@@ -788,7 +887,7 @@ function App() {
             ani: session.local_identity?.uri?.user || '',
           };
 
-          const response = await fetch('http://192.168.1.34:3000/cdr', {
+          const response = await fetch('http://192.168.1.95:3000/cdr', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -826,17 +925,17 @@ function App() {
     setCallStatus('');
     setIsVideoEnabled(false);
   }, [userAgent, updateUserStatus]);
-useEffect(() => {
-  const handleBeforeUnload = () => {
-    updateUserStatus('offline');
-  };
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      updateUserStatus('offline');
+    };
 
-  window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('beforeunload', handleBeforeUnload);
 
-  return () => {
-    window.removeEventListener('beforeunload', handleBeforeUnload);
-  };
-}, [updateUserStatus]);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [updateUserStatus]);
   // Fonction pour gérer l'appui sur une touche du clavier numérique
   const handleKeyPress = useCallback((key) => {
     setCallTo(prevCallTo => prevCallTo + key);
@@ -892,7 +991,7 @@ useEffect(() => {
   };
   const handleTransferToContact = (contactNumber) => {
     if (session) {
-      session.refer(`sip:${contactNumber}@192.168.1.34:5070`);
+      session.refer(`sip:${contactNumber}@192.168.1.95:5070`);
       setIsTransferMode(false);
       setShowTransferPopup(false);
     }
@@ -914,7 +1013,6 @@ useEffect(() => {
           <main className="app-main">
             {currentPage === 'home' && (
               <>
-
                 <header className="app-header">
                   <img
                     src={profile.photo || defaultPhoto}
@@ -924,7 +1022,6 @@ useEffect(() => {
                     style={{ cursor: 'pointer' }}
                   />
                   <h2>
-                    {/* {profile.name || username} */}
                     {connectionFailed && (
                       <span
                         className="connection-warning"
@@ -933,6 +1030,8 @@ useEffect(() => {
                         ⚠️
                       </span>
                     )}
+
+                    
                   </h2>
                   <div className="header-buttons">
                     <button
@@ -942,10 +1041,9 @@ useEffect(() => {
                     >
                       {doNotDisturb ? <MdBedtimeOff /> : <MdBedtime />}
                     </button>
-
-
-
-                    <button className="btn-circle-logout btn-danger" onClick={handleLogout} title={t('logout')}><MdCallEnd /></button>
+                    <button className="btn-circle-logout btn-danger" onClick={handleLogout} title={t('logout')}>
+                      <MdCallEnd />
+                    </button>
                   </div>
                 </header>
                 <div className="call-status">
@@ -997,7 +1095,25 @@ useEffect(() => {
                         </>
                       )}
                       {session && (
-                        <>
+                        <><div className="active-call">
+                          <h3>Appel en cours</h3>
+                          <p>Durée: {formatDuration(callDuration)}</p>
+                          <div>
+                            <h4>Participants:</h4>
+                            <ul>
+                              {participants.map((participant, index) => (
+                                <li key={index}>{participant.name} ({participant.extension})</li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                          <button
+                            className="btn-circle-add-extension"
+                            onClick={() => setShowAddExtensionPopup(true)}
+                            title={t('Add Extension')}
+                          >
+                            <MdPersonAdd />
+                          </button>
                           <button className="btn-circle-hangup" onClick={handleHangup} title={t('hangUp')}>
                             <MdCallEnd />
                           </button>
@@ -1057,10 +1173,6 @@ useEffect(() => {
                 token={token}
               />
             )}
-
-            {/* Nouvelle pop-up de transfert */}
-
-
             {showTransferPopup && (
               <div className="transfer-popup">
                 <div className="transfer-popup-content">
@@ -1079,7 +1191,28 @@ useEffect(() => {
                     onTransfer={handleTransferToContact}
                     t={t}
                     token={token}
-                    title={t('Transfer')} // Ajoutez cette ligne
+                    title={t('Transfer')}
+                  />
+                </div>
+              </div>
+            )}
+            {showAddExtensionPopup && (
+              <div className="transfer-popup">
+                <div className="transfer-popup-content">
+                  <button className="close-popup" onClick={() => setShowAddExtensionPopup(false)}>×</button>
+                  <button
+                    className="eye-icon"
+                    onMouseEnter={() => document.querySelector('.transfer-popup-content').style.opacity = '0.05'}
+                    onMouseLeave={() => document.querySelector('.transfer-popup-content').style.opacity = '1'}
+                  >
+                    <MdRemoveRedEye />
+                  </button>
+                  <ContactDirectory
+                    onCallContact={handleAddContactToCall}
+                    isAddMode={true}
+                    t={t}
+                    token={token}
+                    title={t('Invite')}
                   />
                 </div>
               </div>
@@ -1288,7 +1421,9 @@ useEffect(() => {
               </div>
             )}
           </main>
-        </div>)}
+        </div>)}{userInfo && userInfo.is_admin && (
+                      <MdSecurity className="admin-icon" title={t('adminUser')} />
+                    )}
       {showProfile && (
         <Profile
           onClose={() => setShowProfile(false)}
