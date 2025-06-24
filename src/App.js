@@ -56,6 +56,8 @@ function App() {
   const [connectionFailed, setConnectionFailed] = useState(false);
   const [username, setUsername] = useState('');
   const [callTo, setCallTo] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
+
   const [showTransferPopup, setShowTransferPopup] = useState(false);
   const [showAddExtensionPopup, setShowAddExtensionPopup] = useState(false);
   const [extensionToAdd, setExtensionToAdd] = useState('');
@@ -170,6 +172,8 @@ function App() {
         }
         const data = await response.json();
         setUserInfo(data);
+        setIsAdmin(data.is_admin || false); // Mise à jour de isAdmin
+
       } catch (error) {
         console.error('Error fetching user info:', error);
       }
@@ -214,37 +218,37 @@ function App() {
       console.error('Error updating user status:', error);
     }
   }, [token, username]);
-const resetMediaStreams = () => {
-  // Arrêter et nettoyer le flux vidéo distant
-  if (remoteVideoRef.current && remoteVideoRef.current.srcObject) {
-    const tracks = remoteVideoRef.current.srcObject.getTracks();
-    tracks.forEach(track => track.stop());
-    remoteVideoRef.current.srcObject = null;
-  }
+  const resetMediaStreams = () => {
+    // Arrêter et nettoyer le flux vidéo distant
+    if (remoteVideoRef.current && remoteVideoRef.current.srcObject) {
+      const tracks = remoteVideoRef.current.srcObject.getTracks();
+      tracks.forEach(track => track.stop());
+      remoteVideoRef.current.srcObject = null;
+    }
 
-  // Arrêter et nettoyer le flux vidéo local
-  if (localVideoRef.current && localVideoRef.current.srcObject) {
-    const tracks = localVideoRef.current.srcObject.getTracks();
-    tracks.forEach(track => track.stop());
-    localVideoRef.current.srcObject = null;
-  }
+    // Arrêter et nettoyer le flux vidéo local
+    if (localVideoRef.current && localVideoRef.current.srcObject) {
+      const tracks = localVideoRef.current.srcObject.getTracks();
+      tracks.forEach(track => track.stop());
+      localVideoRef.current.srcObject = null;
+    }
 
-  // Réinitialiser l'état de l'audio et de la vidéo
-  setIsAudioEnabled(true);
-  setIsVideoEnabled(false);
+    // Réinitialiser l'état de l'audio et de la vidéo
+    setIsAudioEnabled(true);
+    setIsVideoEnabled(false);
 
-  // Si vous avez un analyseur audio, le réinitialiser aussi
-  if (analyserRef.current) {
-    analyserRef.current.disconnect();
-    analyserRef.current = null;
-  }
+    // Si vous avez un analyseur audio, le réinitialiser aussi
+    if (analyserRef.current) {
+      analyserRef.current.disconnect();
+      analyserRef.current = null;
+    }
 
-  // Annuler toute animation en cours
-  if (animationFrameRef.current) {
-    cancelAnimationFrame(animationFrameRef.current);
-    animationFrameRef.current = null;
-  }
-};
+    // Annuler toute animation en cours
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+  };
   // Fonction de connexion
   const handleLogin = useCallback((extension, password) => {
     setUsername(extension);
@@ -337,23 +341,23 @@ const resetMediaStreams = () => {
       });
 
       newSession.on('ended', () => {
-  console.log('Call ended');
-  setCallStatus('Call ended');
-  setSession(null);
-  setIncomingCall(null);
-  setIsVideoEnabled(false);
-  resetMediaStreams();
+        console.log('Call ended');
+        setCallStatus('Call ended');
+        setSession(null);
+        setIncomingCall(null);
+        setIsVideoEnabled(false);
+        resetMediaStreams();
 
-  // Optionnel : Réinitialiser d'autres états liés à l'appel si nécessaire
-  setCallDuration(0);
-  setParticipants([]);
-  // Arrêter tous les tracks de la vidéo locale
-  if (localVideoRef.current && localVideoRef.current.srcObject) {
-    const tracks = localVideoRef.current.srcObject.getTracks();
-    tracks.forEach(track => track.stop());
-    localVideoRef.current.srcObject = null;
-  }
-});
+        // Optionnel : Réinitialiser d'autres états liés à l'appel si nécessaire
+        setCallDuration(0);
+        setParticipants([]);
+        // Arrêter tous les tracks de la vidéo locale
+        if (localVideoRef.current && localVideoRef.current.srcObject) {
+          const tracks = localVideoRef.current.srcObject.getTracks();
+          tracks.forEach(track => track.stop());
+          localVideoRef.current.srcObject = null;
+        }
+      });
 
       newSession.on('failed', (e) => {
         console.error('Call failed:', e);
@@ -363,9 +367,9 @@ const resetMediaStreams = () => {
         setIsVideoEnabled(false);
         resetMediaStreams();
 
-  // Optionnel : Réinitialiser d'autres états liés à l'appel si nécessaire
-  setCallDuration(0);
-  setParticipants([]);
+        // Optionnel : Réinitialiser d'autres états liés à l'appel si nécessaire
+        setCallDuration(0);
+        setParticipants([]);
       });
 
       newSession.on('peerconnection', (e) => {
@@ -1283,6 +1287,7 @@ const resetMediaStreams = () => {
                 onVideoCallContact={onVideoCallContact}
                 setShouldInitiateCall={setShouldInitiateCall}
                 handleTransferClick={handleTransferClick}
+                isAdmin={isAdmin}
 
                 isTransferMode={isTransferMode}
                 onTransfer={handleTransferToContact}
@@ -1306,6 +1311,7 @@ const resetMediaStreams = () => {
                     onVideoCallContact={onVideoCallContact}
                     setShouldInitiateCall={setShouldInitiateCall}
                     handleTransferClick={handleTransferClick}
+                    isAdmin={isAdmin}
 
                     isTransferMode={true}
                     onTransfer={handleTransferToContact}
@@ -1332,6 +1338,7 @@ const resetMediaStreams = () => {
                     setShouldInitiateCall={setShouldInitiateCall}
                     handleTransferClick={handleTransferClick}
                     onVideoCallContact={onVideoCallContact}
+                    isAdmin={isAdmin}
 
                     isAddMode={true}
                     t={t}
@@ -1432,7 +1439,7 @@ const resetMediaStreams = () => {
             )}
             {currentPage === 'settings' && (
               <div className="settings-page">
-                
+
                 <h2><MdSettings /> {t('settings')}</h2>
 
                 <div className={`settings-section ${expandedSection === 'appearance' ? 'expanded' : ''}`}>
