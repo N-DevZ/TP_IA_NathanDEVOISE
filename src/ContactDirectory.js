@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './ContactDirectory.css';
-import { MdPhoneInTalk, MdVideocam, MdPhoneForwarded, MdFilterAlt, MdSortByAlpha, MdFormatListNumbered, MdFiberManualRecord, MdPower, MdPersonAdd  } from 'react-icons/md';
+import { MdPhoneInTalk, MdVideocam, MdPhoneForwarded, MdFilterAlt, MdSortByAlpha, MdFormatListNumbered, MdFiberManualRecord, MdPower, MdPersonAdd } from 'react-icons/md';
 
-function ContactDirectory({ onCallContact, onVideoCallContact, isTransferMode,isAddMode, handleTransferClick, t, token, title }) {
+function ContactDirectory({ onCallContact, onVideoCallContact, isTransferMode, isAddMode, setShouldInitiateCall, handleTransferClick, t, token, title }) {
   const [contacts, setContacts] = useState([]);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -56,7 +56,7 @@ function ContactDirectory({ onCallContact, onVideoCallContact, isTransferMode,is
     fetchContacts();
   }, [token, t]);
 
- useEffect(() => {
+  useEffect(() => {
     let filtered = contacts;
 
     if (searchTerm.trim() !== '') {
@@ -72,14 +72,15 @@ function ContactDirectory({ onCallContact, onVideoCallContact, isTransferMode,is
     }
 
     filtered.sort((a, b) => {
-      const compareValue = (sortOrder === 'asc' ? 1 : -1);
+      const compareValue = sortOrder === 'asc' ? 1 : -1;
       if (filterOption === 'name') {
-        return a.name.localeCompare(b.name) * compareValue;
+        return a.number.localeCompare(b.number) * compareValue;
       } else if (filterOption === 'extension') {
         return a.extension.localeCompare(b.extension) * compareValue;
       }
       return 0;
     });
+
 
     setFilteredContacts(filtered);
   }, [searchTerm, contacts, filterOption, sortOrder, statusFilter]);
@@ -147,93 +148,108 @@ function ContactDirectory({ onCallContact, onVideoCallContact, isTransferMode,is
         />
       </div>
       <div className="filter-container">
-  <button
-    onClick={handleFilterClick}
-    className={`filter-button ${showSortOptions ? 'active' : ''}`}
-  >
-    <MdFilterAlt />
-  </button>
+        <button
+          onClick={handleFilterClick}
+          className={`filter-button ${showSortOptions ? 'active' : ''}`}
+        >
+          <MdFilterAlt />
+        </button>
 
-  <div className={`sort-options ${showSortOptions ? 'show' : ''}`}>
-    <div className="sort-options-center">
-      <div
-        className={`sort-option ${filterOption === 'name' ? 'active' : ''}`}
-        onClick={() => handleFilterChange('name')}
-      >
-        <MdFormatListNumbered />
-      </div>
-      <div
-        className={`sort-option ${filterOption === 'extension' ? 'active' : ''}`}
-        onClick={() => handleFilterChange('extension')}
-      >
-        <MdSortByAlpha />
-      </div>
-    </div>
-    <button onClick={handleStatusFilterClick} className="status-filter-button">
-      <MdPower />
-    </button>
-  </div>
+        <div className={`sort-options ${showSortOptions ? 'show' : ''}`}>
+          <div className="sort-options-center">
+            <div
+              className={`sort-option ${filterOption === 'name' ? 'active' : ''}`}
+              onClick={() => handleFilterChange('name')}
+            >
+              <MdFormatListNumbered />
+            </div>
+            <div
+              className={`sort-option ${filterOption === 'extension' ? 'active' : ''}`}
+              onClick={() => handleFilterChange('extension')}
+            >
+              <MdSortByAlpha />
+            </div>
+          </div>
+          <button onClick={handleStatusFilterClick} className="status-filter-button">
+            <MdPower />
+          </button>
+        </div>
 
-  <div className={`status-filter-menu ${showFilterMenu ? 'show' : ''}`}>
-    <button onClick={() => handleStatusFilterChange('all')}>{t('All')}</button>
-    <button onClick={() => handleStatusFilterChange('online')}>{t('Online')}</button>
-    <button onClick={() => handleStatusFilterChange('offline')}>{t('Offline')}</button>
-    <button onClick={() => handleStatusFilterChange('dnd')}>{t('Do Not Disturb')}</button>
-  </div>
-</div>
+        <div className={`status-filter-menu ${showFilterMenu ? 'show' : ''}`}>
+          <button className="status-all" onClick={() => handleStatusFilterChange('all')}>
+            <span className="status-dot"></span> {t('All')}
+          </button>
+          <button className="status-online" onClick={() => handleStatusFilterChange('online')}>
+            <span className="status-dot"></span> {t('Online')}
+          </button>
+          <button className="status-offline" onClick={() => handleStatusFilterChange('offline')}>
+            <span className="status-dot"></span> {t('Offline')}
+          </button>
+          <button className="status-dnd" onClick={() => handleStatusFilterChange('dnd')}>
+            <span className="status-dot"></span> {t('Do Not Disturb')}
+          </button>
+        </div>
+
+      </div>
 
       <div className="contact-list-container">
         {filteredContacts.length === 0 ? (
           <p>{t("noContactsFound")}</p>
         ) : (
           <ul className="contact-list">
-  {filteredContacts.map((contact) => (
-    <li key={contact.id} className="contact-item">
-      <div className="contact-info">
-        <MdFiberManualRecord className={`status-dot status-${contact.status}`} />
-        <div className="contact-details">
-          <div className="contact-name-extension">
-            <span className="contact-name">{highlightText(contact.name, searchTerm)}</span>
-            <span className="contact-extension">{highlightText(contact.extension, searchTerm)}</span>
-          </div>
-          <span className="contact-number">{highlightText(contact.number, searchTerm)}</span>
-        </div>
-      </div>
-      <div className="contact-actions">
-        {isAddMode ? (
-          <button
-            className="add-to-call-button"
-            onClick={() => onCallContact(contact)}
-          >
-            <MdPersonAdd className="add-icon-contacts" />
-          </button>
-        ) : isTransferMode ? (
-          <button
-            className="btn-transfer"
-            onClick={() => handleTransferClick(contact)}
-          >
-            <MdPhoneForwarded className="transfer-icon-contacts" />
-          </button>
-        ) : (
-          <>
-            <button
-              className="call-button-contacts"
-              onClick={() => onCallContact(contact)}
-            >
-              <MdPhoneInTalk className="call-icon-contacts" />
-            </button>
-            <button
-              className="video-call-button-contacts"
-              onClick={() => onVideoCallContact(contact)}
-            >
-              <MdVideocam className="video-call-icon-contacts" />
-            </button>
-          </>
-        )}
-      </div>
-    </li>
-  ))}
-</ul>
+            {filteredContacts.map((contact) => (
+              <li key={contact.id} className="contact-item">
+                <div className="contact-info">
+                  <MdFiberManualRecord className={`status-dot status-${contact.status}`} />
+                  <div className="contact-details">
+                    <div className="contact-name-extension">
+                      <span className="contact-name">{highlightText(contact.name, searchTerm)}</span>
+                      <span className="contact-extension">{highlightText(contact.number, searchTerm)}</span>
+                    </div>
+                    <span className="contact-number">{highlightText(contact.extension, searchTerm)}</span>
+                  </div>
+                </div>
+                <div className="contact-actions">
+                  {isAddMode ? (
+                    <button
+                      className="add-to-call-button"
+                      onClick={() => onCallContact(contact)}
+                    >
+                      <MdPersonAdd className="add-icon-contacts" />
+                    </button>
+                  ) : isTransferMode ? (
+                    <button
+                      className="btn-transfer"
+                      onClick={() => handleTransferClick(contact)}
+                    >
+                      <MdPhoneForwarded className="transfer-icon-contacts" />
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        className="call-button-contacts"
+                        onClick={() => {
+                          onCallContact(contact.extension);
+                          setShouldInitiateCall(true);
+                        }}
+                      >
+                        <MdPhoneInTalk className="call-icon-contacts" />
+                      </button>
+                      <button
+                        className="video-call-button-contacts"
+                        onClick={() => {
+                          onVideoCallContact(contact.extension);
+                          setShouldInitiateCall(true);
+                        }}
+                      >
+                        <MdVideocam className="video-call-icon-contacts" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
     </div>

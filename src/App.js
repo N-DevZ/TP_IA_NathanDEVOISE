@@ -37,6 +37,8 @@ if (window.require) {
 
 function App() {
   // États pour gérer l'application
+  const [shouldInitiateCall, setShouldInitiateCall] = useState(false);
+
   const [userAgent, setUserAgent] = useState(null);
   const [callHistory, setCallHistory] = useState([]);
   const [userInfo, setUserInfo] = useState(null);
@@ -212,7 +214,37 @@ function App() {
       console.error('Error updating user status:', error);
     }
   }, [token, username]);
+const resetMediaStreams = () => {
+  // Arrêter et nettoyer le flux vidéo distant
+  if (remoteVideoRef.current && remoteVideoRef.current.srcObject) {
+    const tracks = remoteVideoRef.current.srcObject.getTracks();
+    tracks.forEach(track => track.stop());
+    remoteVideoRef.current.srcObject = null;
+  }
 
+  // Arrêter et nettoyer le flux vidéo local
+  if (localVideoRef.current && localVideoRef.current.srcObject) {
+    const tracks = localVideoRef.current.srcObject.getTracks();
+    tracks.forEach(track => track.stop());
+    localVideoRef.current.srcObject = null;
+  }
+
+  // Réinitialiser l'état de l'audio et de la vidéo
+  setIsAudioEnabled(true);
+  setIsVideoEnabled(false);
+
+  // Si vous avez un analyseur audio, le réinitialiser aussi
+  if (analyserRef.current) {
+    analyserRef.current.disconnect();
+    analyserRef.current = null;
+  }
+
+  // Annuler toute animation en cours
+  if (animationFrameRef.current) {
+    cancelAnimationFrame(animationFrameRef.current);
+    animationFrameRef.current = null;
+  }
+};
   // Fonction de connexion
   const handleLogin = useCallback((extension, password) => {
     setUsername(extension);
@@ -305,15 +337,23 @@ function App() {
       });
 
       newSession.on('ended', () => {
-        console.log('Call ended');
-        setCallStatus('Call ended');
-        setSession(null);
-        setIncomingCall(null);
-        setIsVideoEnabled(false);
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = null;
-        }
-      });
+  console.log('Call ended');
+  setCallStatus('Call ended');
+  setSession(null);
+  setIncomingCall(null);
+  setIsVideoEnabled(false);
+  resetMediaStreams();
+
+  // Optionnel : Réinitialiser d'autres états liés à l'appel si nécessaire
+  setCallDuration(0);
+  setParticipants([]);
+  // Arrêter tous les tracks de la vidéo locale
+  if (localVideoRef.current && localVideoRef.current.srcObject) {
+    const tracks = localVideoRef.current.srcObject.getTracks();
+    tracks.forEach(track => track.stop());
+    localVideoRef.current.srcObject = null;
+  }
+});
 
       newSession.on('failed', (e) => {
         console.error('Call failed:', e);
@@ -321,9 +361,11 @@ function App() {
         setSession(null);
         setIncomingCall(null);
         setIsVideoEnabled(false);
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = null;
-        }
+        resetMediaStreams();
+
+  // Optionnel : Réinitialiser d'autres états liés à l'appel si nécessaire
+  setCallDuration(0);
+  setParticipants([]);
       });
 
       newSession.on('peerconnection', (e) => {
@@ -365,7 +407,63 @@ function App() {
     ua.start();
 
   }, [updateUserStatus]);
+  const handleTransferClick = useCallback((contact) => {
+    console.log('handleTransferClick called with contact:', contact);
 
+    if (session && contact.extension) {
+      console.log('Session and contact extension are valid');
+      const target = `sip:${contact.extension}@192.168.1.95:5070`;
+      console.log('Transfer target:', target);
+
+      try {
+        console.log('Preparing transfer options');
+        const options = {
+          extraHeaders: [
+            `Referred-By: <sip:${username}@192.168.1.95:5070>`,
+            'Session-Expires: 600',
+            'Min-SE: 120'
+          ]
+        };
+        console.log('Transfer options:', options);
+
+        console.log('Initiating transfer');
+        session.refer(target, options);
+
+        console.log('Adding refer event listener');
+        session.on('refer', (response) => {
+          console.log('Refer event received, response:', response);
+          console.log('Refer response status code:', response.status_code);
+
+          if (response.status_code === 202) {
+            console.log(`Transfer to ${contact.extension} initiated successfully`);
+            setShowTransferPopup(false);
+            setIsTransferMode(false);
+            setCurrentPage('home');
+
+            console.log('Adding ended event listener for transfer completion');
+            session.on('ended', () => {
+              console.log('Transfer completed, original call ended');
+              setSession(null);
+              setCallStatus('Call transferred');
+            });
+          } else {
+            console.error(`Transfer failed with status code: ${response.status_code}`);
+            console.log('Full response object:', response);
+          }
+        });
+
+        console.log('Transfer process initiated');
+      } catch (error) {
+        console.error('Transfer failed:', error);
+        console.log('Error details:', error.message);
+        console.log('Error stack:', error.stack);
+      }
+    } else {
+      console.log('Invalid session or contact extension');
+      console.log('Session:', session);
+      console.log('Contact:', contact);
+    }
+  }, [session, username]);
   const attemptReconnection = useCallback(() => {
     if (userAgent && !userAgent.isRegistered()) {
       console.log('Attempting to reconnect...');
@@ -492,7 +590,13 @@ function App() {
     setIsEditing(true);
     setEditedProfile({ ...profile });
   };
-
+  useEffect(() => {
+    if (callTo && currentPage === 'home' && shouldInitiateCall) {
+      console.log("Initiating call from useEffect");
+      handleCall(false);
+      setShouldInitiateCall(false); // Réinitialise le flag après avoir initié l'appel
+    }
+  }, [callTo, currentPage, handleCall, shouldInitiateCall]);
   const handleCancel = () => {
     setIsEditing(false);
     setEditedProfile({ ...profile });
@@ -658,17 +762,30 @@ function App() {
     getDevices();
   }, [getDevices]);
 
-  const handleCallContact = useCallback((number) => {
-    setCallTo(number);
-    handleCall(false);  // false pour un appel audio
-    setCurrentPage('home');
-  }, [setCallTo, handleCall]);
+  const handleCallContact = useCallback((extension) => {
+    console.log("handleCallContact called with extension:", extension);
+    if (extension) {
+      setCallTo(extension);
+      setShouldInitiateCall(true);
+      setCurrentPage('home');
+    }
+  }, []);
 
-  const handleVideoCallContact = useCallback((number) => {
-    setCallTo(number);
+  const handleVideoCallContact = useCallback((extension) => {
+    setCallTo(extension);
     handleCall(true);  // true pourcall-icon un appel vidéo
   }, [setCallTo, handleCall]);
-
+  const onVideoCallContact = useCallback((extension) => {
+    setCallTo(extension);
+    setCurrentPage('home');
+    setIsVideoEnabled(true);
+  }, []);
+  useEffect(() => {
+    if (shouldInitiateCall && callTo) {
+      handleCall(callTo, true);
+      setShouldInitiateCall(false);
+    }
+  }, [shouldInitiateCall, callTo, handleCall]);
   const handleAddExtension = useCallback(() => {
     setShowAddExtensionPopup(true);
   }, []);
@@ -982,10 +1099,7 @@ function App() {
     return <LoginPage onLogin={handleLogin} t={t} />;
   }
 
-  const handleTransferClick = () => {
-    setIsTransferMode(true);
-    setCurrentPage('contacts');
-  };
+
   const handleTransferPopupOpen = () => {
     setShowTransferPopup(true);
   };
@@ -1031,7 +1145,7 @@ function App() {
                       </span>
                     )}
 
-                    
+
                   </h2>
                   <div className="header-buttons">
                     <button
@@ -1166,7 +1280,10 @@ function App() {
             {currentPage === 'contacts' && (
               <ContactDirectory
                 onCallContact={handleCallContact}
-                onVideoCallContact={handleVideoCallContact}
+                onVideoCallContact={onVideoCallContact}
+                setShouldInitiateCall={setShouldInitiateCall}
+                handleTransferClick={handleTransferClick}
+
                 isTransferMode={isTransferMode}
                 onTransfer={handleTransferToContact}
                 t={t}
@@ -1186,7 +1303,10 @@ function App() {
                   </button>
                   <ContactDirectory
                     onCallContact={handleCallContact}
-                    onVideoCallContact={handleVideoCallContact}
+                    onVideoCallContact={onVideoCallContact}
+                    setShouldInitiateCall={setShouldInitiateCall}
+                    handleTransferClick={handleTransferClick}
+
                     isTransferMode={true}
                     onTransfer={handleTransferToContact}
                     t={t}
@@ -1209,6 +1329,10 @@ function App() {
                   </button>
                   <ContactDirectory
                     onCallContact={handleAddContactToCall}
+                    setShouldInitiateCall={setShouldInitiateCall}
+                    handleTransferClick={handleTransferClick}
+                    onVideoCallContact={onVideoCallContact}
+
                     isAddMode={true}
                     t={t}
                     token={token}
@@ -1308,6 +1432,7 @@ function App() {
             )}
             {currentPage === 'settings' && (
               <div className="settings-page">
+                
                 <h2><MdSettings /> {t('settings')}</h2>
 
                 <div className={`settings-section ${expandedSection === 'appearance' ? 'expanded' : ''}`}>
@@ -1422,8 +1547,8 @@ function App() {
             )}
           </main>
         </div>)}{userInfo && userInfo.is_admin && (
-                      <MdSecurity className="admin-icon" title={t('adminUser')} />
-                    )}
+          <MdSecurity className="admin-icon" title={t('adminUser')} />
+        )}
       {showProfile && (
         <Profile
           onClose={() => setShowProfile(false)}

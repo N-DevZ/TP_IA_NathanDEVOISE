@@ -111,7 +111,7 @@
   background-color: lightgray;
   position: relative;
   height: 5.25vh;
-  overflow: hidden;
+  overflow: visible;
   transition: height 0.3s ease;
 } /* Ajoute ceci à ton fichier CSS (par exemple: Filter.css) */
 
@@ -265,26 +265,71 @@
 .status-filter-menu {
   position: absolute;
   top: 100%;
-  left: 25vh;
-  background-color: white;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  right: 0;
+  margin-right: 4vh;
+  background: linear-gradient(145deg, #ffffff, #f0f0f0);
+  border-radius: 16px;
+  padding: 10px 0;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.06),
+    0 8px 20px rgba(0, 0, 0, 0.08);
+  z-index: 1000;
+  min-width: 220px;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  transform: translateY(-12px);
+  opacity: 0;
+  pointer-events: none;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.status-filter-menu.show {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
 }
 
 .status-filter-menu button {
-  display: block;
   width: 100%;
-  padding: 10px;
-  text-align: left;
-  background: none;
+  padding: 14px 20px;
+  background: transparent;
   border: none;
+  font-size: 15px;
+  font-weight: 500;
+  color: #333;
+  text-align: left;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: background 0.2s ease, color 0.2s ease;
+  border-left: 4px solid transparent;
 }
 
 .status-filter-menu button:hover {
-  background-color: #f0f0f0;
+  background-color: #eaf3ff;
+  color: #0056b3;
+  border-left: 4px solid #0056b3;
 }
+
+.status-filter-menu button:focus {
+  outline: none;
+  background-color: #dceeff;
+  color: #003d80;
+  border-left: 4px solid #003d80;
+}
+
+.status-filter-menu .status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+/* Couleurs de pastille */
+.status-all     .status-dot { background-color: #007bff; }  /* Bleu */
+.status-online  .status-dot { background-color: #28a745; }  /* Vert */
+.status-offline .status-dot { background-color: #6c757d; }  /* Gris */
+.status-dnd     .status-dot { background-color: #dc3545; }  /* Rouge */
+
 
 .contact-extension {
   font-size: 18px;
