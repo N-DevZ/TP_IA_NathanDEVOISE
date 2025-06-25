@@ -206,10 +206,12 @@ return (
       
       {showSortOptions && (
         <>
-       <div className='user_type'>    
+       <div className='user_type'>
+            
       <label className="show-all-checkbox">
         <input
           type="checkbox"
+
           checked={showAll}
           onChange={(e) => setShowAll(e.target.checked)}
         />
@@ -236,7 +238,6 @@ return (
       )}
       
       <div className={`sort-options ${showSortOptions ? 'show' : ''}`}>
-        <div className="sort-options-center">
           <div
             className={`sort-option ${filterOption === 'name' ? 'active' : ''}`}
             onClick={() => handleFilterChange('name')}
@@ -248,7 +249,6 @@ return (
             onClick={() => handleFilterChange('extension')}
           >
             <MdFormatListNumbered />
-          </div>
         </div>
         <button onClick={handleStatusFilterClick} className="status-filter-button">
           <MdPower />

@@ -160,25 +160,67 @@ function App() {
     }
   }, []);
   const fetchUserInfo = useCallback(async () => {
-    if (token && username) {
-      try {
-        const response = await fetch(`http://192.168.1.95:3000/users/${username}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-        if (!response.ok) {
-          throw new Error('Failed to fetch user info');
-        }
-        const data = await response.json();
-        setUserInfo(data);
-        setIsAdmin(data.is_admin || false); // Mise à jour de isAdmin
-
-      } catch (error) {
-        console.error('Error fetching user info:', error);
+  if (token && username) {
+    try {
+      const response = await fetch(`http://192.168.1.95:3000/users/${username}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch user info');
       }
+      const data = await response.json();
+      setUserInfo(data);
+      setIsAdmin(data.is_admin || false);
+      
+      // Gestion de la photo de profil
+      let photoUrl = defaultPhoto;
+      if (data.profile_picture && data.profile_picture.data) {
+        const base64String = btoa(String.fromCharCode.apply(null, new Uint8Array(data.profile_picture.data)));
+        photoUrl = `data:image/jpeg;base64,${base64String}`;
+      }
+
+      setProfile(prevProfile => ({
+        ...prevProfile,
+        name: data.name || '',
+        photo: photoUrl,
+      }));
+
+      console.log('User data received:', data);
+    } catch (error) {
+      console.error('Error fetching user info:', error);
     }
-  }, [token, username]);
+  }
+}, [token, username]);
+ const updateProfilePhoto = useCallback(async (base64Image) => {
+  console.log("Attempting to update profile photo");
+  if (!token || !username) {
+    console.log("Token or username is missing");
+    return;
+  }
+
+  try {
+    console.log("Sending request to update profile photo");
+    const response = await fetch(`http://192.168.1.95:3000/users/${username}/profile`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ profile_picture: base64Image.split(',')[1] }) // Envoyer seulement la partie base64
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update profile picture');
+    }
+
+    console.log('Profile picture updated successfully');
+    await fetchUserInfo(); // Récupérer les informations mises à jour de l'utilisateur
+  } catch (error) {
+    console.error('Error updating profile picture:', error);
+  }
+}, [token, username, fetchUserInfo]);
 
   // Générer le token au lancement de l'application
   useEffect(() => {
@@ -296,11 +338,37 @@ function App() {
       console.log('Disconnected. Attempting to reconnect...');
       setTimeout(() => ua.register(), 5000); // Tente de se reconnecter après 5 secondes
     });
-    ua.on('registered', () => {
+    ua.on('registered', async () => {
       setRegistrationStatus('Registered');
       setIsLoggedIn(true);
       setConnectionFailed(false);
-      updateUserStatus('online'); // Met à jour le statut après l'enregistrement
+      updateUserStatus('online');
+  await fetchUserInfo(); // Appel après l'enregistrement
+
+      // Récupération du nom du contact après l'enregistrement réussi
+      try {
+        const response = await fetch(`http://192.168.1.95:3000/users/${extension}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch user info');
+        }
+
+        const userData = await response.json();
+
+        // Mise à jour du profil avec le nom du contact
+        setProfile(prevProfile => ({
+          ...prevProfile,
+          name: userData.name || `${userData.prenom} ${userData.nom}`.trim(),
+        }));
+
+        console.log(`User ${extension} logged in as ${userData.name}`);
+      } catch (error) {
+        console.error('Error fetching user info:', error);
+      }
     });
     ua.on('unregistered', () => {
       setRegistrationStatus('Unregistered');
@@ -670,16 +738,7 @@ function App() {
   const handleInputChange = (field, value) => {
     setEditedProfile({ ...editedProfile, [field]: value });
   };
-  const handlePhotoChange = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfile({ ...profile, photo: reader.result });
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+  
   const toggleVideo = useCallback(() => {
     if (session) {
       const videoTrack = session.connection.getSenders()
@@ -1030,7 +1089,22 @@ function App() {
     await fetchCallHistory(); // Mettre à jour l'historique après l'appel
 
   }, [session, token, fetchCallHistory]);
-
+const handlePhotoChange = useCallback(async (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64Image = reader.result.split(',')[1]; // Obtenir seulement la partie base64
+      await updateProfilePhoto(base64Image);
+      // Mettre à jour l'état local immédiatement
+      setProfile(prevProfile => ({
+        ...prevProfile,
+        photo: reader.result // Utilisez l'URL data complète ici
+      }));
+    };
+    reader.readAsDataURL(file);
+  }
+}, [updateProfilePhoto]);
   // Fonction de déconnexion
   const handleLogout = useCallback(() => {
     if (userAgent) {
@@ -1072,9 +1146,13 @@ function App() {
       setLanguage(newLanguage);
     }
   };
-  const handleProfileUpdate = (newProfile) => {
-    setProfile(newProfile);
-  };
+  const handleProfileUpdate = useCallback(async (updatedProfile) => {
+    if (updatedProfile.photo && updatedProfile.photo !== profile.photo) {
+      await updateProfilePhoto(updatedProfile.photo);
+    }
+    // Update other profile fields if necessary
+    setProfile(updatedProfile);
+  }, [updateProfilePhoto, profile]);
   const handleProfilePhotoClick = () => {
     setCurrentPage('profile');
   };
@@ -1562,6 +1640,7 @@ function App() {
           profile={profile}
           onUpdate={handleProfileUpdate}
           t={t}
+
         />
       )}
       {isLoading && <LoadingSpinner />}

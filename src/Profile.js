@@ -27,7 +27,7 @@ const ProfileField = ({ label, type, value, onChange, onEdit, isEditing, t }) =>
   </div>
 );
 
-function Profile({ onClose, profile, onUpdate, t }) {
+function Profile({ onClose, profile, onUpdate, t, handlePhotoChange }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedProfile, setEditedProfile] = useState({ ...profile });
 
@@ -49,35 +49,39 @@ function Profile({ onClose, profile, onUpdate, t }) {
     setIsEditing(false);
   };
 
-  const handlePhotoChange = (e) => {
-    const file = e.target.files[0];
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setEditedProfile({ ...editedProfile, photo: reader.result });
-    };
-    reader.readAsDataURL(file);
-  };
+//   const handlePhotoChange = (e) => {
+//   const file = e.target.files[0];
+//   if (file) {
+//     const reader = new FileReader();
+//     reader.onloadend = () => {
+//       const base64Image = reader.result;
+//       setEditedProfile({ ...editedProfile, photo: base64Image });
+//       onUpdate({ ...editedProfile, photo: base64Image }); // Appel à la fonction de mise à jour
+//     };
+//     reader.readAsDataURL(file);
+//   }
+// };
 
   return (
     <div className="profile-modal">
       <h2>{t('Edit Profile')}</h2>
       <div className="profile-photo-container">
-        <img
-          src={editedProfile.photo || profile.photo}
-          alt={t('Profile Picture')}
-          className="profile-photo"
-        />
-        <input
-          type="file"
-          id="photo-upload"
-          accept="image/*"
-          style={{ display: 'none' }}
-          onChange={handlePhotoChange}
-        />
-        <label htmlFor="photo-upload" className="change-photo-button">
-          {t('Change Photo')}
-        </label>
-      </div>
+  <img
+    src={profile.photo}
+    alt={t('Profile Picture')}
+    className="profile-photo"
+  />
+  <input
+    type="file"
+    id="photo-upload"
+    accept="image/*"
+    style={{ display: 'none' }}
+    onChange={handlePhotoChange}
+  />
+  <label htmlFor="photo-upload" className="change-photo-button">
+    {t('Change Photo')}
+  </label>
+</div>
       <ProfileField
         label="Name"
         type="text"
