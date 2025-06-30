@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { MdEdit } from 'react-icons/md';
+import { MdEdit, MdClose } from 'react-icons/md';
 import './Profile.css';
 
-const ProfileField = ({ label, type, value, onChange, onEdit, isEditing, t }) => (
+const ProfileField = ({ label, type, value, onChange, onEdit, isEditing, isReadOnly, t }) => (
   <div className="profile-field">
     <label>{t(label)}</label>
-    {type === 'textarea' ? (
+    {isReadOnly ? (
+      <p className="profile-value">{value}</p>
+    ) : type === 'textarea' ? (
       <textarea
         value={value}
         readOnly={!isEditing}
@@ -19,7 +21,7 @@ const ProfileField = ({ label, type, value, onChange, onEdit, isEditing, t }) =>
         onChange={onChange}
       />
     )}
-    {!isEditing && (
+    {!isReadOnly && !isEditing && (
       <button className="edit-button" onClick={onEdit} title={t('Modify')}>
         <MdEdit />
       </button>
@@ -27,7 +29,7 @@ const ProfileField = ({ label, type, value, onChange, onEdit, isEditing, t }) =>
   </div>
 );
 
-function Profile({ onClose, profile, onUpdate, t, handlePhotoChange }) {
+function Profile({ onClose, profile, onUpdate, t, handlePhotoChange, isReadOnly = false }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedProfile, setEditedProfile] = useState({ ...profile });
 
@@ -49,74 +51,83 @@ function Profile({ onClose, profile, onUpdate, t, handlePhotoChange }) {
     setIsEditing(false);
   };
 
-//   const handlePhotoChange = (e) => {
-//   const file = e.target.files[0];
-//   if (file) {
-//     const reader = new FileReader();
-//     reader.onloadend = () => {
-//       const base64Image = reader.result;
-//       setEditedProfile({ ...editedProfile, photo: base64Image });
-//       onUpdate({ ...editedProfile, photo: base64Image }); // Appel à la fonction de mise à jour
-//     };
-//     reader.readAsDataURL(file);
-//   }
-// };
+  const displayName = profile.name || `${profile.prenom || ''} ${profile.nom || ''}`.trim();
 
   return (
-    <div className="profile-modal">
-      <h2>{t('Edit Profile')}</h2>
-      <div className="profile-photo-container">
-  <img
-    src={profile.photo}
-    alt={t('Profile Picture')}
-    className="profile-photo"
-  />
-  <input
-    type="file"
-    id="photo-upload"
-    accept="image/*"
-    style={{ display: 'none' }}
-    onChange={handlePhotoChange}
-  />
-  <label htmlFor="photo-upload" className="change-photo-button">
-    {t('Change Photo')}
-  </label>
-</div>
-      <ProfileField
-        label="Name"
-        type="text"
-        value={editedProfile.name}
-        onChange={(e) => handleInputChange('name', e.target.value)}
-        onEdit={() => handleEdit('name')}
-        isEditing={isEditing}
-        t={t}
-      />
-      <ProfileField
-        label="Email"
-        type="email"
-        value={editedProfile.email}
-        onChange={(e) => handleInputChange('email', e.target.value)}
-        onEdit={() => handleEdit('email')}
-        isEditing={isEditing}
-        t={t}
-      />
-      <ProfileField
-        label="Bio"
-        type="textarea"
-        value={editedProfile.bio}
-        onChange={(e) => handleInputChange('bio', e.target.value)}
-        onEdit={() => handleEdit('bio')}
-        isEditing={isEditing}
-        t={t}
-      />
-      {isEditing && (
+    <div className={`profile-modal ${isReadOnly ? 'full-screen' : ''}`}>
+      <div className="profile-header">
+        <h2>{isReadOnly ? t('View Profile') : t('Edit Profile')}</h2>
+        <button className="close-button" onClick={onClose}>
+          <MdClose />
+        </button>
+      </div>
+      <div className="profile-content">
+        <div className="profile-photo-container">
+          <img
+            src={profile.photo || profile.profile_picture}
+            alt={t('Profile Picture')}
+            className={`profile-photo ${isReadOnly ? 'large' : ''}`}
+          />
+          {!isReadOnly && (
+            <>
+              <input
+                type="file"
+                id="photo-upload"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handlePhotoChange}
+              />
+              <label htmlFor="photo-upload" className="change-photo-button">
+                {t('Change Photo')}
+              </label>
+            </>
+          )}
+        </div>
+        <div className="profile-info">
+          <ProfileField
+            label="Name"
+            type="text"
+            value={isReadOnly ? displayName : editedProfile.name}
+            onChange={(e) => handleInputChange('name', e.target.value)}
+            onEdit={() => handleEdit('name')}
+            isEditing={isEditing}
+            isReadOnly={isReadOnly}
+            t={t}
+          />
+          <ProfileField
+            label="Extension"
+            type="text"
+            value={profile.extension}
+            isReadOnly={true}
+            t={t}
+          />
+          <ProfileField
+            label="Email"
+            type="email"
+            value={isReadOnly ? profile.email : editedProfile.email}
+            onChange={(e) => handleInputChange('email', e.target.value)}
+            onEdit={() => handleEdit('email')}
+            isEditing={isEditing}
+            isReadOnly={isReadOnly}
+            t={t}
+          />
+          <ProfileField
+            label="Bio"
+            type="textarea"
+            value={isReadOnly ? profile.bio : editedProfile.bio}
+            onChange={(e) => handleInputChange('bio', e.target.value)}
+            onEdit={() => handleEdit('bio')}
+            isEditing={isEditing}
+            isReadOnly={isReadOnly}
+            t={t}
+          />
+        </div>
+      </div>
+      {!isReadOnly && isEditing && (
         <div className="profile-actions">
           <button className="save-button" onClick={handleSave}>{t('Save')}</button>
           <button className="cancel-button" onClick={handleCancel}>{t('Cancel')}</button>
         </div>
-      )}
-      {!isEditing && (
-        <button className="close-button" onClick={onClose}>{t('Close')}</button>
       )}
     </div>
   );

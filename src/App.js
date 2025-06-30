@@ -3,6 +3,9 @@ import JsSIP from 'jssip';
 import LoginPage from './LoginPage';
 import Settings from './Settings';
 import Profile from './Profile';
+import Messages from './Messages';
+import VoiceMessages from './VoiceMessages'; // Importez le nouveau composant
+
 import CustomTitleBar from './CustomTitleBar';
 import './App.css';
 import moment from 'moment-timezone';
@@ -24,7 +27,7 @@ import disablemicroicon from './assets/disablemicro.png';
 
 
 import { FaPhone, FaPhoneVolume, FaVideo } from 'react-icons/fa';
-import { MdPhoneInTalk, MdVideocam, MdVideocamOff, MdCallEnd, MdMic, MdMicOff, MdPhoneForwarded, MdBedtime, MdBedtimeOff, MdEdit, MdRemoveRedEye, MdExpandMore, MdExpandLess, MdBrush, MdSettings, MdPersonAdd, MdLock, MdSecurity } from 'react-icons/md';
+import { MdPhoneInTalk, MdVideocam, MdVideocamOff, MdCallEnd, MdMic, MdMicOff, MdPhoneForwarded, MdBedtime, MdBedtimeOff, MdEdit, MdRemoveRedEye, MdExpandMore, MdExpandLess, MdBrush, MdSettings, MdPersonAdd, MdLock, MdSecurity, MdMessage } from 'react-icons/md';
 // Activation du débogage JsSIP
 JsSIP.debug.enable('JsSIP:*');
 
@@ -38,6 +41,9 @@ if (window.require) {
 function App() {
   // États pour gérer l'application
   const [shouldInitiateCall, setShouldInitiateCall] = useState(false);
+  const [refreshContacts, setRefreshContacts] = useState(false);
+  const [isCallInProgress, setIsCallInProgress] = useState(false);
+  const [callProgress, setCallProgress] = useState('initial');
 
   const [userAgent, setUserAgent] = useState(null);
   const [callHistory, setCallHistory] = useState([]);
@@ -47,6 +53,7 @@ function App() {
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const audioContextRef = useRef(null);
   const analyserRef = useRef(null);
+  const [isVoicemail, setIsVoicemail] = useState(false);
   const animationFrameRef = useRef(null);
   const [registrationStatus, setRegistrationStatus] = useState('');
   const [callStatus, setCallStatus] = useState('');
@@ -57,7 +64,8 @@ function App() {
   const [username, setUsername] = useState('');
   const [callTo, setCallTo] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
-
+  // Ajoutez ceci avec les autres déclarations useState au début du composant
+  const [voicemailTimer, setVoicemailTimer] = useState(null);
   const [showTransferPopup, setShowTransferPopup] = useState(false);
   const [showAddExtensionPopup, setShowAddExtensionPopup] = useState(false);
   const [extensionToAdd, setExtensionToAdd] = useState('');
@@ -160,67 +168,79 @@ function App() {
     }
   }, []);
   const fetchUserInfo = useCallback(async () => {
-  if (token && username) {
+    if (token && username) {
+      try {
+        const response = await fetch(`http://192.168.1.95:3000/users/${username}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        if (!response.ok) {
+          throw new Error('Failed to fetch user info');
+        }
+        const data = await response.json();
+        setUserInfo(data);
+        setIsAdmin(data.is_admin || false);
+
+        // Utiliser directement l'image en base64 si elle existe
+        const photoUrl = data.profile_picture || defaultPhoto;
+
+        setProfile(prevProfile => ({
+          ...prevProfile,
+          name: data.name || '',
+          photo: photoUrl,
+        }));
+
+        console.log('User data received:', data);
+
+        // Déclencher le rechargement des contacts
+        setRefreshContacts(prev => !prev);
+      } catch (error) {
+        console.error('Error fetching user info:', error);
+      }
+    }
+  }, [token, username]);
+  const updateProfilePhoto = useCallback(async (base64Image) => {
+    console.log("Attempting to update profile photo");
+
+    if (!token || !username) {
+      console.log("Token or username is missing");
+      return;
+    }
+
     try {
-      const response = await fetch(`http://192.168.1.95:3000/users/${username}`, {
+      // Préparer l'image base64 propre
+      const imageData = base64Image.startsWith("data:image")
+        ? base64Image.split(',')[1]
+        : base64Image;
+
+      if (!imageData) {
+        throw new Error("Image base64 invalide ou vide");
+      }
+
+      console.log("Sending request to update profile photo");
+
+      const response = await fetch(`http://192.168.1.95:3000/users/${username}/profile`, {
+        method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
+        body: JSON.stringify({ profile_picture: imageData })
       });
+
       if (!response.ok) {
-        throw new Error('Failed to fetch user info');
-      }
-      const data = await response.json();
-      setUserInfo(data);
-      setIsAdmin(data.is_admin || false);
-      
-      // Gestion de la photo de profil
-      let photoUrl = defaultPhoto;
-      if (data.profile_picture && data.profile_picture.data) {
-        const base64String = btoa(String.fromCharCode.apply(null, new Uint8Array(data.profile_picture.data)));
-        photoUrl = `data:image/jpeg;base64,${base64String}`;
+        const errorText = await response.text();
+        throw new Error(`Failed to update profile picture: ${errorText}`);
       }
 
-      setProfile(prevProfile => ({
-        ...prevProfile,
-        name: data.name || '',
-        photo: photoUrl,
-      }));
-
-      console.log('User data received:', data);
+      console.log("Base64 image data (truncated):", imageData.substring(0, 100));
+      console.log('Profile picture updated successfully');
+      await fetchUserInfo();
     } catch (error) {
-      console.error('Error fetching user info:', error);
+      console.error('Error updating profile picture:', error);
     }
-  }
-}, [token, username]);
- const updateProfilePhoto = useCallback(async (base64Image) => {
-  console.log("Attempting to update profile photo");
-  if (!token || !username) {
-    console.log("Token or username is missing");
-    return;
-  }
-
-  try {
-    console.log("Sending request to update profile photo");
-    const response = await fetch(`http://192.168.1.95:3000/users/${username}/profile`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ profile_picture: base64Image.split(',')[1] }) // Envoyer seulement la partie base64
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to update profile picture');
-    }
-
-    console.log('Profile picture updated successfully');
-    await fetchUserInfo(); // Récupérer les informations mises à jour de l'utilisateur
-  } catch (error) {
-    console.error('Error updating profile picture:', error);
-  }
-}, [token, username, fetchUserInfo]);
+  }, [token, username, fetchUserInfo]);
 
   // Générer le token au lancement de l'application
   useEffect(() => {
@@ -343,7 +363,7 @@ function App() {
       setIsLoggedIn(true);
       setConnectionFailed(false);
       updateUserStatus('online');
-  await fetchUserInfo(); // Appel après l'enregistrement
+      await fetchUserInfo(); // Appel après l'enregistrement
 
       // Récupération du nom du contact après l'enregistrement réussi
       try {
@@ -402,6 +422,7 @@ function App() {
       newSession.on('accepted', () => {
         console.log('Call accepted');
         setCallStatus('Call in progress');
+        setIsCallInProgress(true); // Ajoutez cette ligne
       });
 
       newSession.on('confirmed', () => {
@@ -415,10 +436,11 @@ function App() {
         setIncomingCall(null);
         setIsVideoEnabled(false);
         resetMediaStreams();
-
-        // Optionnel : Réinitialiser d'autres états liés à l'appel si nécessaire
         setCallDuration(0);
         setParticipants([]);
+        setIsCallInProgress(false); // Ajoutez cette ligne
+
+
         // Arrêter tous les tracks de la vidéo locale
         if (localVideoRef.current && localVideoRef.current.srcObject) {
           const tracks = localVideoRef.current.srcObject.getTracks();
@@ -599,65 +621,191 @@ function App() {
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
+  const playBeepSound = useCallback(() => {
+    console.log('Playing beep sound');
+    const beep = new Audio('/assets/beep.mp3');
+    beep.play();
+  }, []);
+  const playVoicemailGreeting = useCallback(() => {
+  console.log('Playing voicemail greeting audio file');
+  console.log(`Voici le token :${token}`);
+
+  const soundId = 2;  // ID du son par défaut
+
+  // Requête pour récupérer l'audio MP3 en base64 depuis l'API
+  fetch(`http://192.168.1.95:3000/defauts-sound/${soundId}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    }
+  })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Failed to fetch audio data');
+      }
+      return response.json();
+    })
+    .then(data => {
+      console.log('Données reçues:', data);
+
+      if (data.mp3_data) {
+        // Décode les données Base64 en format binaire
+        try {
+          const audioData = new Uint8Array(atob(data.mp3_data).split('').map(char => char.charCodeAt(0)));
+
+          // Crée un Blob à partir des données décodées et un URL à partir de ce Blob
+          const audioBlob = new Blob([audioData], { type: 'audio/mp3' });
+          const audioUrl = URL.createObjectURL(audioBlob);
+
+          // Crée un élément audio et joue-le
+          const greetingAudio = new Audio(audioUrl);
+          greetingAudio.onended = () => {
+            console.log('Greeting audio ended, playing beep sound');
+            playBeepSound(); // Logique pour jouer un autre son après
+          };
+
+          // Joue l'audio
+          greetingAudio.play().catch(error => {
+            console.error('Error playing greeting audio:', error);
+          });
+        } catch (e) {
+          console.error('Erreur de décodage Base64:', e);
+        }
+      } else {
+        console.error('Aucune donnée audio trouvée dans la réponse');
+      }
+    })
+    .catch(error => {
+      console.error('Error fetching the audio:', error);
+    });
+}, [token, playBeepSound]);
+
+
+
+
+
+  const handleVoicemail = useCallback(() => {
+    console.log("Handling voicemail");
+    playVoicemailGreeting();
+    // Autres actions nécessaires pour la messagerie vocale
+  }, [playVoicemailGreeting]);
   // Fonction pour initier un appel
   const handleCall = useCallback(async (withVideo = false) => {
-    if (!userAgent || !callTo) return;
+  if (!userAgent || !callTo) return;
 
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: withVideo
-      });
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
-
-      const options = {
-        mediaStream: stream,
-        mediaConstraints: { audio: true, video: withVideo },
-        pcConfig: {
-          iceServers: [
-            { urls: ['stun:stun.freeswitch.org'] },
-          ],
-          iceTransportPolicy: 'all',
-        },
-        rtcOfferConstraints: {
-          offerToReceiveAudio: 1,
-          offerToReceiveVideo: withVideo ? 1 : 0
-        },
-        sessionTimersExpires: 600
-      };
-
-      console.log('Initiating call to:', `sip:${callTo}@192.168.1.95:5070`);
-      const newSession = userAgent.call(`sip:${callTo}@192.168.1.95:5070`, options);
-      setSession(newSession);
-      setCallStatus('Calling...');
-      setIsVideoEnabled(withVideo);
-      setParticipants([{ name: callTo, extension: callTo }]);
-
-      newSession.on('accepted', () => {
-        console.log('Call accepted by remote party');
-        setCallStatus('Call in progress');
-        const remoteName = newSession.remote_identity.display_name || callTo;
-        setParticipants([{ name: remoteName, extension: callTo }]);
-      });
-
-      newSession.on('confirmed', () => {
-        console.log('Call confirmed');
-      });
-
-      newSession.connection.ontrack = (event) => {
-        console.log('Remote track received in outgoing call');
-        const [remoteStream] = event.streams;
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = remoteStream;
-        }
-      };
-
-    } catch (error) {
-      console.error('Error accessing media devices:', error);
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: withVideo
+    });
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = stream;
     }
-  }, [userAgent, callTo]);
+
+    const options = {
+      mediaStream: stream,
+      mediaConstraints: { audio: true, video: withVideo },
+      pcConfig: {
+        iceServers: [
+          { urls: ['stun:stun.freeswitch.org'] },
+        ],
+        iceTransportPolicy: 'all',
+      },
+      rtcOfferConstraints: {
+        offerToReceiveAudio: 1,
+        offerToReceiveVideo: withVideo ? 1 : 0
+      },
+      sessionTimersExpires: 600
+    };
+
+    console.log('Initiating call to:', `sip:${callTo}@192.168.1.95:5070`);
+    const newSession = userAgent.call(`sip:${callTo}@192.168.1.95:5070`, options);
+    setSession(newSession);
+    setCallStatus('Calling...');
+    setIsVideoEnabled(withVideo);
+    setParticipants([{ name: callTo, extension: callTo }]);
+    setCallProgress('calling');
+
+    // Timer pour passer en mode messagerie vocale après 19 secondes
+    const voicemailTimer = setTimeout(() => {
+      console.log('Voicemail timer triggered');
+      if (callProgressRef.current === 'calling' || callProgressRef.current === 'progress') {
+        console.log('Call still in progress, activating voicemail');
+        setIsVoicemail(true);
+        handleVoicemail();  // Démarre la messagerie vocale
+        
+        // Met l'appel en attente pour éviter le raccrochage automatique
+        if (newSession && newSession.isInProgress()) {
+          newSession.hold();  // Met l'appel en attente
+        }
+      } else {
+        console.log('Call status changed, not activating voicemail');
+      }
+    }, 19000);
+
+    setVoicemailTimer(voicemailTimer);
+
+    newSession.on('progress', () => {
+      console.log('Call in progress');
+      setCallProgress('progress');
+    });
+
+    newSession.on('accepted', () => {
+      console.log('Call accepted by remote party');
+      setCallStatus('Call in progress');
+      setCallProgress('accepted');
+      clearTimeout(voicemailTimer);  // Supprime le timer de la messagerie vocale si l'appel est accepté
+      setVoicemailTimer(null);
+    });
+
+    newSession.on('failed', (e) => {
+      console.log('Call failed:', e.cause);
+      clearTimeout(voicemailTimer);
+      setVoicemailTimer(null);
+      setCallStatus(`Call failed: ${e.cause}`);
+      setSession(null);
+      setIsVideoEnabled(false);
+      resetMediaStreams();
+    });
+
+    newSession.on('ended', () => {
+      console.log('Call ended');
+      clearTimeout(voicemailTimer);
+      setVoicemailTimer(null);
+      setCallStatus('Call ended');
+      setSession(null);
+      setIsVideoEnabled(false);
+      resetMediaStreams();
+      setCallDuration(0);
+      setParticipants([]);
+    });
+
+    newSession.on('confirmed', () => {
+      console.log('Call confirmed');
+    });
+
+    newSession.connection.ontrack = (event) => {
+      console.log('Remote track received in outgoing call');
+      const [remoteStream] = event.streams;
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = remoteStream;
+      }
+    };
+
+  } catch (error) {
+    console.error('Error accessing media devices:', error);
+  }
+
+  setIsCallInProgress(true);
+
+}, [userAgent, callTo, voicemailTimer, handleVoicemail, playVoicemailGreeting]);
+
+  const callProgressRef = useRef('calling');
+
+  useEffect(() => {
+    callProgressRef.current = callProgress;
+  }, [callProgress]);
+
   const handleEdit = (field) => {
     setIsEditing(true);
     setEditedProfile({ ...profile });
@@ -674,6 +822,13 @@ function App() {
     setEditedProfile({ ...profile });
   };
 
+  useEffect(() => {
+    return () => {
+      if (voicemailTimer) {
+        clearTimeout(voicemailTimer);
+      }
+    };
+  }, [voicemailTimer]);
   const handleSave = () => {
     setProfile({ ...editedProfile });
     setIsEditing(false);
@@ -738,7 +893,7 @@ function App() {
   const handleInputChange = (field, value) => {
     setEditedProfile({ ...editedProfile, [field]: value });
   };
-  
+
   const toggleVideo = useCallback(() => {
     if (session) {
       const videoTrack = session.connection.getSenders()
@@ -1087,24 +1242,25 @@ function App() {
       }
     }
     await fetchCallHistory(); // Mettre à jour l'historique après l'appel
+    setIsCallInProgress(false);
 
   }, [session, token, fetchCallHistory]);
-const handlePhotoChange = useCallback(async (e) => {
-  const file = e.target.files[0];
-  if (file) {
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      const base64Image = reader.result.split(',')[1]; // Obtenir seulement la partie base64
-      await updateProfilePhoto(base64Image);
-      // Mettre à jour l'état local immédiatement
-      setProfile(prevProfile => ({
-        ...prevProfile,
-        photo: reader.result // Utilisez l'URL data complète ici
-      }));
-    };
-    reader.readAsDataURL(file);
-  }
-}, [updateProfilePhoto]);
+  const handlePhotoChange = useCallback(async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64Image = reader.result.split(',')[1]; // Obtenir seulement la partie base64
+        await updateProfilePhoto(base64Image);
+        // Mettre à jour l'état local immédiatement
+        setProfile(prevProfile => ({
+          ...prevProfile,
+          photo: reader.result // Utilisez l'URL data complète ici
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  }, [updateProfilePhoto]);
   // Fonction de déconnexion
   const handleLogout = useCallback(() => {
     if (userAgent) {
@@ -1245,29 +1401,32 @@ const handlePhotoChange = useCallback(async (e) => {
                 <div className="call-status">
                   <p>{t(callStatus)}</p>
                 </div>
-                <div className="keypad">
-                  <div className="call-input-container">
-                    <input
-                      type="text"
-                      value={callTo}
-                      onChange={(e) => setCallTo(e.target.value)}
-                      placeholder={t('enterNumber')}
-                      className="call-input"
-                    />
+
+                {(!isCallInProgress && !incomingCall) && (
+                  <div className="keypad">
+                    <div className="call-input-container">
+                      <input
+                        type="text"
+                        value={callTo}
+                        onChange={(e) => setCallTo(e.target.value)}
+                        placeholder={t('enterNumber')}
+                        className="call-input"
+                      />
+                    </div>
+                    <div className="keypad-buttons">
+                      {keypadButtons.map((button) => (
+                        <button
+                          key={button.key}
+                          onClick={() => handleKeyPress(button.key)}
+                          className="keypad-button"
+                        >
+                          {button.key}
+                          <small>{button.letters}</small>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="keypad-buttons">
-                    {keypadButtons.map((button) => (
-                      <button
-                        key={button.key}
-                        onClick={() => handleKeyPress(button.key)}
-                        className="keypad-button"
-                      >
-                        {button.key}
-                        <small>{button.letters}</small>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                )}
                 <div className="call-controls">
                   {callStatus === 'Incoming call' ? (
                     <>
@@ -1359,18 +1518,27 @@ const handlePhotoChange = useCallback(async (e) => {
             {currentPage === 'callHistory' && (
               <CallHistory history={callHistory} username={username} t={t} />
             )}
+            {currentPage === 'messages' && (
+              <Messages username={username} token={token} t={t} />
+            )}
+            {currentPage === 'voiceMessages' && (
+              <VoiceMessages /> // Nouveau composant pour les messages vocaux
+            )}
             {currentPage === 'contacts' && (
               <ContactDirectory
-                onCallContact={handleCallContact}
-                onVideoCallContact={onVideoCallContact}
+                onCallContact={handleCall}
+                onVideoCallContact={(extension) => handleCall(extension, true)}
+                isTransferMode={isTransferMode}
+                isAddMode={false}
                 setShouldInitiateCall={setShouldInitiateCall}
                 handleTransferClick={handleTransferClick}
+                t={t}
                 isAdmin={isAdmin}
 
-                isTransferMode={isTransferMode}
-                onTransfer={handleTransferToContact}
-                t={t}
                 token={token}
+                fetchUserInfo={fetchUserInfo}
+                refreshTrigger={refreshContacts}
+
               />
             )}
             {showTransferPopup && (
@@ -1389,7 +1557,10 @@ const handlePhotoChange = useCallback(async (e) => {
                     onVideoCallContact={onVideoCallContact}
                     setShouldInitiateCall={setShouldInitiateCall}
                     handleTransferClick={handleTransferClick}
+
                     isAdmin={isAdmin}
+                    fetchUserInfo={fetchUserInfo}
+                    refreshTrigger={refreshContacts}
 
                     isTransferMode={true}
                     onTransfer={handleTransferToContact}
@@ -1417,6 +1588,8 @@ const handlePhotoChange = useCallback(async (e) => {
                     handleTransferClick={handleTransferClick}
                     onVideoCallContact={onVideoCallContact}
                     isAdmin={isAdmin}
+                    fetchUserInfo={fetchUserInfo}
+                    refreshTrigger={refreshContacts}
 
                     isAddMode={true}
                     t={t}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { MdHome, MdHistory, MdContacts, MdFace, MdSettings, MdRefresh} from 'react-icons/md';
+import { MdHome, MdHistory, MdContacts, MdFace, MdSettings, MdRefresh, MdMessage, MdVoiceChat } from 'react-icons/md';
 import './SideMenu.css';
 
 function SideMenu({ onNavigate, currentPage, onRefresh, t }) {
@@ -18,6 +18,20 @@ function SideMenu({ onNavigate, currentPage, onRefresh, t }) {
         title={t('callHistory')}
       >
         <MdHistory />
+      </button>
+      <button 
+        className={`menu-item ${currentPage === 'messages' ? 'active' : ''}`} 
+        onClick={() => onNavigate('messages')}
+        title={t('messages')}
+      >
+        <MdMessage />
+      </button>
+      <button 
+        className={`menu-item ${currentPage === 'voiceMessages' ? 'active' : ''}`} 
+        onClick={() => onNavigate('voiceMessages')}
+        title={t('voiceMessages')}
+      >
+        <MdVoiceChat />
       </button>
       <button 
         className={`menu-item ${currentPage === 'contacts' ? 'active' : ''}`} 

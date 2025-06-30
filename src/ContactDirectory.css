@@ -144,10 +144,26 @@
 .status-dnd {
   color: #f44336;
 }
+.contact-profile-picture {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-right: 10px;
+}
 
 .contact-info {
   display: flex;
   align-items: center;
+}
+
+.status-dot {
+  margin-right: 10px;
+}
+.contact-info {
+  display: flex;
+  align-items: center;
+  gap: 20px;
 }
 
 .sort-option,
@@ -282,6 +298,46 @@
   opacity: 0;
   pointer-events: none;
   border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+
+.add-contact-button {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.3s, box-shadow 0.3s;
+}
+
+.add-contact-button:hover {
+  background-color: var(--primary-hover-color);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.add-contact-button svg {
+  width: 24px;
+  height: 24px;
+}
+
+.search-input-container {
+  position: relative;
+  margin-bottom: 15px;
+}
+
+.search-input {
+  width: calc(100% - 50px);
+  padding-right: 40px;
 }
 .add-contact-popup-overlay {
   position: fixed;
@@ -443,7 +499,20 @@ gap:10px;
   outline: none;
   transition: border-color 0.3s;
 }
+.radio-group {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
 
+.radio-group label {
+  display: flex;
+  align-items: center;
+}
+
+.radio-group input[type="radio"] {
+  margin-right: 5px;
+}
 .add-contact-popup .radio-group input[type="radio"]:checked {
   border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb), 0.2);
@@ -656,6 +725,7 @@ gap:10px;
   color: #d32f2f;
   text-align: center;
   margin-top: 20px;
+  color:white;
 }
 
 .loading-message {

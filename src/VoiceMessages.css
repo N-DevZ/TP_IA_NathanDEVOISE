@@ -1,0 +1,51 @@
+.voice-messages {
+  padding: 20px;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
+.voice-messages h2 {
+  margin-bottom: 20px;
+  font-size: 24px;
+}
+
+.voice-message-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.message-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.from {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.date, .duration {
+  font-size: 0.9em;
+  color: var(--secondary-text-color);
+}
+
+.message-controls {
+  display: flex;
+  gap: 10px;
+}
+
+.message-controls button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  color: var(--primary-color);
+  transition: color 0.3s ease;
+}
+
+.message-controls button:hover {
+  color: var(--primary-hover-color);
+}
