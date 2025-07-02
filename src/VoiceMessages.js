@@ -1,35 +1,85 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useCallback } from 'react';
 import { MdPlayArrow, MdPause, MdDelete } from 'react-icons/md';
 import './VoiceMessages.css';
 
-function VoiceMessages({ t = (key) => key }) {  // Ajout d'une valeur par défaut pour t
+function VoiceMessages({ t = (key) => key, token, username }) {
   const [messages, setMessages] = useState([]);
   const [currentlyPlaying, setCurrentlyPlaying] = useState(null);
 
+const fetchVoicemails = useCallback(async () => {
+  try {
+    const response = await fetch(`http://192.168.1.95:3000/voicemails/${username}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch voicemails');
+    }
+
+    const data = await response.json();
+    setMessages(data);
+  } catch (error) {
+    console.error('Error fetching voicemails:', error);
+  }
+}, [token, username]);
+
+useEffect(() => {
+  fetchVoicemails();
+}, [fetchVoicemails]);
+  const fetchVoiceMessages = useCallback(async () => {
+    try {
+      const response = await fetch(`http://192.168.1.95:3000/vocal-messages/${username}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch voice messages');
+      }
+      const data = await response.json();
+      setMessages(data);
+    } catch (error) {
+      console.error('Error fetching voice messages:', error);
+    }
+  }, [token, username]);
+
   useEffect(() => {
-    // Ici, vous devriez charger les messages vocaux depuis votre API
-    // Pour l'exemple, nous utiliserons des données factices
-    const fakeMessages = [
-      { id: 1, from: 'John Doe', date: '2023-05-20 10:30', duration: '0:30' },
-      { id: 2, from: 'Jane Smith', date: '2023-05-19 15:45', duration: '1:15' },
-      { id: 3, from: 'Bob Johnson', date: '2023-05-18 09:00', duration: '0:45' },
-    ];
-    setMessages(fakeMessages);
-  }, []);
+    fetchVoiceMessages();
+  }, [fetchVoiceMessages]);
 
   const handlePlay = (id) => {
-    // Ici, vous devriez implémenter la logique pour jouer le message
-    setCurrentlyPlaying(id);
+    const message = messages.find(m => m.id === id);
+    if (message) {
+      const audio = new Audio(`data:audio/wav;base64,${message.audio_data}`);
+      audio.play();
+      setCurrentlyPlaying(id);
+      audio.onended = () => setCurrentlyPlaying(null);
+    }
   };
 
   const handlePause = () => {
-    // Ici, vous devriez implémenter la logique pour mettre en pause le message
+    // Implement pause logic if needed
     setCurrentlyPlaying(null);
   };
 
-  const handleDelete = (id) => {
-    // Ici, vous devriez implémenter la logique pour supprimer le message
-    setMessages(messages.filter(message => message.id !== id));
+  const handleDelete = async (id) => {
+    try {
+      const response = await fetch(`http://192.168.1.95:3000/vocal-messages/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        throw new Error('Failed to delete voice message');
+      }
+      setMessages(messages.filter(message => message.id !== id));
+    } catch (error) {
+      console.error('Error deleting voice message:', error);
+    }
   };
 
   return (
@@ -42,9 +92,8 @@ function VoiceMessages({ t = (key) => key }) {  // Ajout d'une valeur par défau
           {messages.map((message) => (
             <li key={message.id} className="voice-message-item">
               <div className="message-info">
-                <span className="from">{message.from}</span>
-                <span className="date">{message.date}</span>
-                <span className="duration">{message.duration}</span>
+                <span className="from">{message.sender_name} ({message.sender_id})</span>
+                <span className="date">{new Date(message.timestamp).toLocaleString()}</span>
               </div>
               <div className="message-controls">
                 {currentlyPlaying === message.id ? (

@@ -27,7 +27,7 @@ import disablemicroicon from './assets/disablemicro.png';
 
 
 import { FaPhone, FaPhoneVolume, FaVideo } from 'react-icons/fa';
-import { MdPhoneInTalk, MdVideocam, MdVideocamOff, MdCallEnd, MdMic, MdMicOff, MdPhoneForwarded, MdBedtime, MdBedtimeOff, MdEdit, MdRemoveRedEye, MdExpandMore, MdExpandLess, MdBrush, MdSettings, MdPersonAdd, MdLock, MdSecurity, MdMessage, MdVoicemail  } from 'react-icons/md';
+import { MdPhoneInTalk, MdVideocam, MdVideocamOff, MdCallEnd, MdMic, MdMicOff, MdPhoneForwarded, MdBedtime, MdBedtimeOff, MdEdit, MdRemoveRedEye, MdExpandMore, MdExpandLess, MdBrush, MdSettings, MdPersonAdd, MdLock, MdSecurity, MdMessage, MdVoicemail } from 'react-icons/md';
 // Activation du débogage JsSIP
 JsSIP.debug.enable('JsSIP:*');
 
@@ -44,9 +44,9 @@ function App() {
   const [refreshContacts, setRefreshContacts] = useState(false);
   const [isCallInProgress, setIsCallInProgress] = useState(false);
   const [callProgress, setCallProgress] = useState('initial');
-const [voicemailPreference, setVoicemailPreference] = useState(false);
-const [isRecording, setIsRecording] = useState(false);
-const [customVoicemail, setCustomVoicemail] = useState(null);
+  const [voicemailPreference, setVoicemailPreference] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [customVoicemail, setCustomVoicemail] = useState(null);
   const [userAgent, setUserAgent] = useState(null);
   const [callHistory, setCallHistory] = useState([]);
   const [userInfo, setUserInfo] = useState(null);
@@ -68,6 +68,9 @@ const [customVoicemail, setCustomVoicemail] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const mediaRecorderRef = useRef(null);
   // Ajoutez ceci avec les autres déclarations useState au début du composant
+  const [isRecordingVoicemail, setIsRecordingVoicemail] = useState(false);
+  const voicemailRecorderRef = useRef(null);
+  const voicemailChunksRef = useRef([]);
   const [voicemailTimer, setVoicemailTimer] = useState(null);
   const [showTransferPopup, setShowTransferPopup] = useState(false);
   const [showAddExtensionPopup, setShowAddExtensionPopup] = useState(false);
@@ -95,60 +98,60 @@ const [customVoicemail, setCustomVoicemail] = useState(null);
   const [selectedVideoDevice, setSelectedVideoDevice] = useState('');
   const ringbackCtxRef = useRef(null);
   const ringbackIntervalRef = useRef(null);
-const checkVoicemailPreference = async (extension) => {
-  try {
-    const response = await fetch(`http://192.168.1.95:3000/users/${extension}/voicemail-preference`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-    if (!response.ok) throw new Error('Failed to fetch voicemail preference');
-    const data = await response.json();
-    return {
-      useCustomVoicemail: data.useCustomVoicemail,
-      hasCustomVoicemail: data.hasCustomVoicemail
-    };
-  } catch (error) {
-    console.error('Error checking voicemail preference:', error);
-    return { useCustomVoicemail: false, hasCustomVoicemail: false };
-  }
-};
-const playVoicemail = async (extension, isCustom) => {
-  try {
-    const url = isCustom 
-      ? `http://192.168.1.95:3000/users/${extension}/custom-voicemail`
-      : `http://192.168.1.95:3000/default-voicemail`;
-    
-    const response = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      if (response.status === 404 && isCustom) {
-        // Si pas trouvé pour custom voicemail, on joue le message par défaut
-        console.warn(`Custom voicemail not found for ${extension}, playing default greeting.`);
-        playVoicemailGreeting();
-        return; // on arrête la fonction ici
-      }
-      throw new Error(`Failed to fetch voicemail: ${response.status}`);
+  const checkVoicemailPreference = async (extension) => {
+    try {
+      const response = await fetch(`http://192.168.1.95:3000/users/${extension}/voicemail-preference`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) throw new Error('Failed to fetch voicemail preference');
+      const data = await response.json();
+      return {
+        useCustomVoicemail: data.useCustomVoicemail,
+        hasCustomVoicemail: data.hasCustomVoicemail
+      };
+    } catch (error) {
+      console.error('Error checking voicemail preference:', error);
+      return { useCustomVoicemail: false, hasCustomVoicemail: false };
     }
-    
-    const audioBlob = await response.blob();
-    const audioUrl = URL.createObjectURL(audioBlob);
-    
-    const audio = new Audio(audioUrl);
-     audio.onended = () => {
-      playBeepSound();
-    };
-    audio.play();
-  } catch (error) {
-    console.error('Error playing voicemail:', error);
-    // En cas d'erreur autre, on peut aussi tenter de jouer la greeting par défaut
-    playVoicemailGreeting();
-  }
-};
+  };
+  const playVoicemail = async (extension, isCustom) => {
+    try {
+      const url = isCustom
+        ? `http://192.168.1.95:3000/users/${extension}/custom-voicemail`
+        : `http://192.168.1.95:3000/default-voicemail`;
+
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 404 && isCustom) {
+          // Si pas trouvé pour custom voicemail, on joue le message par défaut
+          console.warn(`Custom voicemail not found for ${extension}, playing default greeting.`);
+          playVoicemailGreeting();
+          return; // on arrête la fonction ici
+        }
+        throw new Error(`Failed to fetch voicemail: ${response.status}`);
+      }
+
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+
+      const audio = new Audio(audioUrl);
+      audio.onended = () => {
+        playBeepSound();
+      };
+      audio.play();
+    } catch (error) {
+      console.error('Error playing voicemail:', error);
+      // En cas d'erreur autre, on peut aussi tenter de jouer la greeting par défaut
+      playVoicemailGreeting();
+    }
+  };
 
   const startRingbackTone = () => {
     if (ringbackCtxRef.current) return; // Évite de dupliquer
@@ -189,7 +192,7 @@ const playVoicemail = async (extension, isCustom) => {
       ringbackIntervalRef.current = null;
     }
   };
-const handleVoicemailPreferenceChange = async (event) => {
+  const handleVoicemailPreferenceChange = async (event) => {
     const useCustom = event.target.checked;
     setVoicemailPreference(useCustom);
     try {
@@ -206,66 +209,66 @@ const handleVoicemailPreferenceChange = async (event) => {
     }
   };
   const handleDeleteVoicemail = async () => {
-  try {
-    const response = await fetch(`http://192.168.1.95:3000/users/${username}/custom-voicemail`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${token}` },
-    });
-    if (response.ok) {
-      console.log('Messagerie vocale personnalisée supprimée avec succès');
-      setCustomVoicemail(null);
-      setVoicemailPreference(false);
+    try {
+      const response = await fetch(`http://192.168.1.95:3000/users/${username}/custom-voicemail`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (response.ok) {
+        console.log('Messagerie vocale personnalisée supprimée avec succès');
+        setCustomVoicemail(null);
+        setVoicemailPreference(false);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la suppression de la messagerie vocale:', error);
     }
-  } catch (error) {
-    console.error('Erreur lors de la suppression de la messagerie vocale:', error);
-  }
-};
-const uploadVoicemail = async (audioBlob) => {
-  const formData = new FormData();
-  formData.append('voicemail', audioBlob);
+  };
+  const uploadVoicemail = async (audioBlob) => {
+    const formData = new FormData();
+    formData.append('voicemail', audioBlob);
 
-  try {
-    const response = await fetch(`http://192.168.1.95:3000/users/${username}/custom-voicemail`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` },
-      body: formData
-    });
-    if (response.ok) {
-      console.log('Messagerie vocale personnalisée téléchargée avec succès');
-      // Mettre à jour l'état local si nécessaire
-      setCustomVoicemail(URL.createObjectURL(audioBlob));
+    try {
+      const response = await fetch(`http://192.168.1.95:3000/users/${username}/custom-voicemail`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+      if (response.ok) {
+        console.log('Messagerie vocale personnalisée téléchargée avec succès');
+        // Mettre à jour l'état local si nécessaire
+        setCustomVoicemail(URL.createObjectURL(audioBlob));
+      }
+    } catch (error) {
+      console.error('Erreur lors du téléchargement de la messagerie vocale:', error);
     }
-  } catch (error) {
-    console.error('Erreur lors du téléchargement de la messagerie vocale:', error);
-  }
-};
+  };
   const startRecording = () => {
-  navigator.mediaDevices.getUserMedia({ audio: true })
-    .then(stream => {
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      const audioChunks = [];
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(stream => {
+        const mediaRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
+        const audioChunks = [];
 
-      mediaRecorder.ondataavailable = (event) => {
-        audioChunks.push(event.data);
-      };
+        mediaRecorder.ondataavailable = (event) => {
+          audioChunks.push(event.data);
+        };
 
-      mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-        uploadVoicemail(audioBlob);
-      };
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+          uploadVoicemail(audioBlob);
+        };
 
-      mediaRecorder.start();
-      setIsRecording(true);
-    });
-};
+        mediaRecorder.start();
+        setIsRecording(true);
+      });
+  };
 
-const stopRecording = () => {
-  if (mediaRecorderRef.current) {
-    mediaRecorderRef.current.stop();
-    setIsRecording(false);
-  }
-};
+  const stopRecording = () => {
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
   const [profile, setProfile] = useState({
     name: '',
     email: '',
@@ -588,18 +591,18 @@ const stopRecording = () => {
         const callerName = newSession.remote_identity.display_name || newSession.remote_identity.uri.user;
         setParticipants([{ name: callerName, extension: newSession.remote_identity.uri.user }]);
         setTimeout(async () => {
-      if (incomingCall) {
-        // L'appel n'a pas été répondu, on bascule sur la messagerie
-        const calledExtension = newSession.remote_identity.uri.user;
-        const hasCustomVoicemail = await checkVoicemailPreference(calledExtension);
-        
-        newSession.terminate(); // Terminer l'appel entrant
-        setCallStatus('Voicemail');
-        
-        // Jouer le message de la messagerie vocale
-        await playVoicemail(calledExtension, hasCustomVoicemail);
-      }
-    }, 5000);
+          if (incomingCall) {
+            // L'appel n'a pas été répondu, on bascule sur la messagerie
+            const calledExtension = newSession.remote_identity.uri.user;
+            const hasCustomVoicemail = await checkVoicemailPreference(calledExtension);
+
+            newSession.terminate(); // Terminer l'appel entrant
+            setCallStatus('Voicemail');
+
+            // Jouer le message de la messagerie vocale
+            await playVoicemail(calledExtension, hasCustomVoicemail);
+          }
+        }, 5000);
       } else {
         setSession(newSession);
         setCallStatus('Outgoing call');
@@ -863,7 +866,7 @@ const stopRecording = () => {
             // Crée un élément audio et joue-le
             const greetingAudio = new Audio(audioUrl);
             greetingAudio.id = 'voicemailGreeting'; // Ajout d'un ID pour faciliter la récupération
-          document.body.appendChild(greetingAudio);
+            document.body.appendChild(greetingAudio);
             greetingAudio.onended = () => {
               console.log('Greeting audio ended, playing beep sound');
               playBeepSound(); // Logique pour jouer un autre son après
@@ -890,17 +893,17 @@ const stopRecording = () => {
 
 
   const handleVoicemail = useCallback(async () => {
-  console.log("Handling voicemail");
-  if (!callTo) return;
-  try {
-    const hasCustomVoicemail = await checkVoicemailPreference(callTo);
-    await playVoicemail(callTo, hasCustomVoicemail);
-  } catch (error) {
-    console.error('Error handling voicemail:', error);
-    // fallback : jouer le message par défaut
-    await playVoicemail(callTo, false);
-  }
-}, [callTo]);
+    console.log("Handling voicemail");
+    if (!callTo) return;
+    try {
+      const hasCustomVoicemail = await checkVoicemailPreference(callTo);
+      await playVoicemail(callTo, hasCustomVoicemail);
+    } catch (error) {
+      console.error('Error handling voicemail:', error);
+      // fallback : jouer le message par défaut
+      await playVoicemail(callTo, false);
+    }
+  }, [callTo]);
 
   // Fonction pour initier un appel
   const handleCall = useCallback(async (withVideo = false) => {
@@ -943,40 +946,40 @@ const stopRecording = () => {
 
       // Dans la fonction handleCall, modifiez le timer de la messagerie vocale comme suit :
       const voicemailTimer = setTimeout(async () => {
-  console.log('Voicemail timer triggered');
+        console.log('Voicemail timer triggered');
 
-  if (callProgressRef.current === 'calling' || callProgressRef.current === 'progress') {
-    console.log('Call still in progress, activating voicemail');
+        if (callProgressRef.current === 'calling' || callProgressRef.current === 'progress') {
+          console.log('Call still in progress, activating voicemail');
 
-    if (newSession && newSession.isInProgress()) {
-      try {
-        newSession.terminate({
-          status_code: 487,
-          reason_phrase: 'Voicemail redirection'
-        });
-        console.log('Session terminated for recipient (487 Voicemail redirection)');
-      } catch (e) {
-        console.warn('Erreur lors de la terminaison SIP pour messagerie:', e);
-      }
-    }
+          if (newSession && newSession.isInProgress()) {
+            try {
+              newSession.terminate({
+                status_code: 487,
+                reason_phrase: 'Voicemail redirection'
+              });
+              console.log('Session terminated for recipient (487 Voicemail redirection)');
+            } catch (e) {
+              console.warn('Erreur lors de la terminaison SIP pour messagerie:', e);
+            }
+          }
 
-    setCallProgress('accepted');
-    callProgressRef.current = 'accepted';
-    stopRingbackTone();
-    setCallStatus('Call in progress (via voicemail)');
-    setIsVoicemail(true);
-    setIsCallInProgress(true);
+          setCallProgress('accepted');
+          callProgressRef.current = 'accepted';
+          stopRingbackTone();
+          setCallStatus('Call in progress (via voicemail)');
+          setIsVoicemail(true);
+          setIsCallInProgress(true);
 
-    // Attendre que la fonction async finisse
-    try {
-      const hasCustomVoicemail = await checkVoicemailPreference(callTo);
-      await playVoicemail(callTo, hasCustomVoicemail);
-    } catch (e) {
-      console.error('Erreur lors de la lecture messagerie:', e);
-      await playVoicemail(callTo, false); // fallback
-    }
-  }
-}, 5000);
+          // Attendre que la fonction async finisse
+          try {
+            const hasCustomVoicemail = await checkVoicemailPreference(callTo);
+            await playVoicemail(callTo, hasCustomVoicemail);
+          } catch (e) {
+            console.error('Erreur lors de la lecture messagerie:', e);
+            await playVoicemail(callTo, false); // fallback
+          }
+        }
+      }, 5000);
 
 
 
@@ -1005,16 +1008,31 @@ const stopRecording = () => {
         setVoicemailTimer(null);
       });
 
-      newSession.on('failed', (e) => {
-        console.log('Call failed:', e.cause);
-        clearTimeout(voicemailTimer);
-        setVoicemailTimer(null);
-        stopRingbackTone();
-        setCallStatus(`Call failed: ${e.cause}`);
-        setSession(null);
-        setIsVideoEnabled(false);
-        resetMediaStreams();
-      });
+       newSession.on('failed', async (e) => {
+    console.log('Call failed:', e.cause);
+    clearTimeout(voicemailTimer);
+    setVoicemailTimer(null);
+    stopRingbackTone();
+    setCallStatus(`Call failed: ${e.cause}`);
+
+    if (e.cause === 'Unavailable' || e.cause === 'No Answer') {
+      const { useCustomVoicemail, hasCustomVoicemail } = await checkVoicemailPreference(callTo);
+      if (useCustomVoicemail && hasCustomVoicemail) {
+        await playVoicemail(callTo, true);
+      } else {
+        await playVoicemailGreeting();
+      }
+      
+      // Commencer l'enregistrement après le bip
+      setTimeout(() => {
+        startVoicemailRecording();
+      }, 1000); // Attendre 1 seconde après le bip
+    }
+
+    setSession(null);
+    setIsVideoEnabled(false);
+    resetMediaStreams();
+  });
 
       newSession.on('ended', () => {
         console.log('Call ended');
@@ -1054,6 +1072,69 @@ const stopRecording = () => {
   useEffect(() => {
     callProgressRef.current = callProgress;
   }, [callProgress]);
+const startVoicemailRecording = useCallback(() => {
+  setIsRecordingVoicemail(true);
+  navigator.mediaDevices.getUserMedia({ audio: true })
+    .then(stream => {
+      voicemailRecorderRef.current = new MediaRecorder(stream);
+      voicemailRecorderRef.current.ondataavailable = (event) => {
+        voicemailChunksRef.current.push(event.data);
+      };
+      voicemailRecorderRef.current.onstop = () => {
+        const audioBlob = new Blob(voicemailChunksRef.current, { type: 'audio/wav' });
+        sendVoicemailToServer(audioBlob);
+        voicemailChunksRef.current = [];
+      };
+      voicemailRecorderRef.current.start();
+
+      // Arrêter l'enregistrement après 60 secondes (ou la durée que vous souhaitez)
+      setTimeout(() => {
+        if (voicemailRecorderRef.current && voicemailRecorderRef.current.state === 'recording') {
+          voicemailRecorderRef.current.stop();
+          setIsRecordingVoicemail(false);
+        }
+      }, 60000);
+    });
+}, []);
+
+const stopVoicemailRecording = useCallback(() => {
+  if (voicemailRecorderRef.current && voicemailRecorderRef.current.state === 'recording') {
+    voicemailRecorderRef.current.stop();
+    setIsRecordingVoicemail(false);
+  }
+}, []);
+
+const sendVoicemailToServer = useCallback(async (audioBlob) => {
+  console.log('Sending voicemail to server...');
+  
+  if (!token || !callTo) {
+    console.error('Token or callTo is missing');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('voicemail', audioBlob, 'voicemail.wav');
+  formData.append('sender', username);
+  formData.append('receiver', callTo);
+
+  try {
+    const response = await fetch('http://192.168.1.95:3000/voicemails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to send voicemail');
+    }
+
+    console.log('Voicemail sent successfully');
+  } catch (error) {
+    console.error('Error sending voicemail:', error);
+  }
+}, [token, callTo, username]);
 
   const handleEdit = (field) => {
     setIsEditing(true);
@@ -1423,11 +1504,10 @@ const stopRecording = () => {
   }, [userAgent, fetchCallHistory]);
   // Fonction pour raccrocher
   const handleHangup = useCallback(async () => {
-    console.log('Hanging up call');
+  console.log('Hanging up call');
 
   // Arrêter la lecture de l'audio de la messagerie vocale
   if (isVoicemail) {
-    // Arrêter la lecture du message d'accueil
     const greetingAudio = document.querySelector('audio');
     if (greetingAudio) {
       greetingAudio.pause();
@@ -1438,6 +1518,43 @@ const stopRecording = () => {
     if (audioContextRef.current) {
       audioContextRef.current.close().catch(console.error);
       audioContextRef.current = null;
+    }
+
+    // Vérifier si un enregistrement de message vocal est en cours
+    if (voicemailRecorderRef.current && voicemailRecorderRef.current.state === 'recording') {
+      voicemailRecorderRef.current.stop();
+      voicemailRecorderRef.current.ondataavailable = async (event) => {
+        console.log('Audio data available:', event.data);
+
+        // Si des données audio sont disponibles, envoyer la requête POST
+        if (event.data.size > 0) {
+          const audioBlob = new Blob([event.data], { type: 'audio/wav' });
+
+          // Envoi du message vocal au serveur
+          try {
+            const formData = new FormData();
+            formData.append('voicemail', audioBlob, 'voicemail.wav');
+            formData.append('sender', username);
+            formData.append('receiver', callTo);
+
+            const response = await fetch('http://192.168.1.95:3000/voicemails', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+              },
+              body: formData
+            });
+
+            if (!response.ok) {
+              throw new Error('Failed to send voicemail');
+            }
+
+            console.log('Voicemail sent successfully');
+          } catch (error) {
+            console.error('Error sending voicemail:', error);
+          }
+        }
+      };
     }
   }
 
@@ -1466,65 +1583,66 @@ const stopRecording = () => {
     setCallStatus('');
   }, 3000);
 
-    // Insérer les données CDR
-    if (token) {
-      try {
-        const now = new Date();
+  // Insérer les données CDR
+  if (token) {
+    try {
+      const now = new Date();
 
-        const nowInFrance = moment().tz('Europe/Paris').add(2, 'hours');
-        const utcNow = nowInFrance.clone().tz('UTC');
+      const nowInFrance = moment().tz('Europe/Paris').add(2, 'hours');
+      const utcNow = nowInFrance.clone().tz('UTC');
 
-        const start_time = session.start_time
-          ? moment(session.start_time).tz('Europe/Paris').add(2, 'hours').tz('UTC')
-          : utcNow;
-        const connect_time = session.connect_time
-          ? moment(session.connect_time).tz('Europe/Paris').add(2, 'hours').tz('UTC')
-          : utcNow;
+      const start_time = session.start_time
+        ? moment(session.start_time).tz('Europe/Paris').add(2, 'hours').tz('UTC')
+        : utcNow;
+      const connect_time = session.connect_time
+        ? moment(session.connect_time).tz('Europe/Paris').add(2, 'hours').tz('UTC')
+        : utcNow;
 
-        const cdrData = {
-          local_ip_v4: '192.168.1.95', // Remplacez par l'IP réelle
-          caller_id_name: session.remote_identity?.display_name || '',
-          caller_id_number: session.remote_identity?.uri?.user || '',
-          destination_number: session.local_identity?.uri?.user || '',
-          context: 'default',
-          start_stamp: start_time.toISOString(),
-          answer_stamp: connect_time.toISOString(),
-          end_stamp: utcNow.toISOString(),
-          duration: Math.max(0, utcNow.diff(start_time, 'seconds')),
-          billsec: Math.max(0, utcNow.diff(connect_time, 'seconds')),
-          hangup_cause: session.cause || '',
-          uuid: session.id || '',
-          bleg_uuid: '',
-          accountcode: '',
-          read_codec: session.connection?.getReceivers()[0]?.track.getSettings().codec || '',
-          write_codec: session.connection?.getSenders()[0]?.track.getSettings().codec || '',
-          sip_hangup_disposition: '',
-          ani: session.local_identity?.uri?.user || '',
-        };
+      const cdrData = {
+        local_ip_v4: '192.168.1.95', // Remplacez par l'IP réelle
+        caller_id_name: session.remote_identity?.display_name || '',
+        caller_id_number: session.remote_identity?.uri?.user || '',
+        destination_number: session.local_identity?.uri?.user || '',
+        context: 'default',
+        start_stamp: start_time.toISOString(),
+        answer_stamp: connect_time.toISOString(),
+        end_stamp: utcNow.toISOString(),
+        duration: Math.max(0, utcNow.diff(start_time, 'seconds')),
+        billsec: Math.max(0, utcNow.diff(connect_time, 'seconds')),
+        hangup_cause: session.cause || '',
+        uuid: session.id || '',
+        bleg_uuid: '',
+        accountcode: '',
+        read_codec: session.connection?.getReceivers()[0]?.track.getSettings().codec || '',
+        write_codec: session.connection?.getSenders()[0]?.track.getSettings().codec || '',
+        sip_hangup_disposition: '',
+        ani: session.local_identity?.uri?.user || '',
+      };
 
-        const response = await fetch('http://192.168.1.95:3000/cdr', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify(cdrData),
-        });
+      const response = await fetch('http://192.168.1.95:3000/cdr', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(cdrData),
+      });
 
-        if (!response.ok) {
-          throw new Error('Failed to insert CDR data');
-        }
-
-        console.log('CDR data inserted successfully');
-      } catch (error) {
-        console.error('Error inserting CDR data:', error);
+      if (!response.ok) {
+        throw new Error('Failed to insert CDR data');
       }
+
+      console.log('CDR data inserted successfully');
+    } catch (error) {
+      console.error('Error inserting CDR data:', error);
     }
+  }
 
-    await fetchCallHistory(); // Mettre à jour l'historique après l'appel
-    setIsCallInProgress(false);
+  await fetchCallHistory(); // Mettre à jour l'historique après l'appel
+  setIsCallInProgress(false);
 
-  }, [session, isVoicemail, t, token, resetMediaStreams, stopRingbackTone, fetchCallHistory]);
+}, [session, isVoicemail, t, token, resetMediaStreams, stopRingbackTone, fetchCallHistory, sendVoicemailToServer]);
+
   const handlePhotoChange = useCallback(async (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -1784,7 +1902,11 @@ const stopRecording = () => {
                         </>
                       )}
                     </>
-                  )}
+                  )} {isRecordingVoicemail && (
+    <div className="recording-indicator">
+      Enregistrement du message vocal en cours...
+    </div>
+  )}
                 </div>
 
                 <div className="video-container">
@@ -1976,157 +2098,157 @@ const stopRecording = () => {
                 )}
               </div>
             )}
-            
-{currentPage === 'settings' && (
-  <div className="settings-page">
 
-    <h2><MdSettings /> {t('settings')}</h2>
+            {currentPage === 'settings' && (
+              <div className="settings-page">
 
-    <div className={`settings-section ${expandedSection === 'appearance' ? 'expanded' : ''}`}>
-      <div className="section-header" onClick={() => toggleSection('appearance')}>
-        <h3><MdBrush /> {t('appearance')}</h3>
-        {expandedSection === 'appearance' ? <MdExpandLess /> : <MdExpandMore />}
-      </div>
-      {expandedSection === 'appearance' && (
-        <div className="section-content">
-          <div className="setting-item">
-            <label htmlFor="theme-select">{t('theme')}:</label>
-            <select
-              id="theme-select"
-              value={theme}
-              onChange={(e) => handleThemeChange(e.target.value)}
-            >
-              <option value="light">{t('light')}</option>
-              <option value="dark">{t('dark')}</option>
-            </select>
-          </div>
-          <div className="setting-item">
-            <label htmlFor="language-select">{t('language')}:</label>
-            <select value={language} onChange={(e) => handleLanguageChange(e.target.value)}>
-              <option value="en">English</option>
-              <option value="fr">Français</option>
-              <option value="es">Español</option>
-              <option value="de">Deutsch</option>
-              <option value="it">Italiano</option>
-              <option value="pt">Português</option>
-              <option value="nl">Nederlands</option>
-              <option value="ru">Русский</option>
-              <option value="ja">日本語</option>
-              <option value="ko">한국어</option>
-              <option value="ar">العربية</option>
-              <option value="zh">中文</option>
-              <option value="uk">Українська</option>
-              <option value="pl">Polski</option>
-              <option value="tr">Türkçe</option>
-              <option value="vi">Tiếng Việt</option>
-              <option value="ro">Română</option>
-              <option value="sv">Svenska</option>
-              <option value="no">Norsk</option>
-              <option value="fi">Suomi</option>
-              <option value="el">Ελληνικά</option>
-              <option value="hu">Magyar</option>
-              <option value="sr">Српски</option>
-              <option value="id">Bahasa Indonesia</option>
-              <option value="ur">اردو</option>
-              <option value="hr">Hrvatski</option>
-              <option value="is">Íslenska</option>
-              <option value="et">Eesti</option>
-              <option value="lt">Lietuvių</option>
-              <option value="be">Беларуская</option>
-              <option value="af">Afrikaans</option>
-            </select>
-          </div>
-        </div>
-      )}
-    </div>
+                <h2><MdSettings /> {t('settings')}</h2>
 
-    <div className={`settings-section ${expandedSection === 'audioAndVideo' ? 'expanded' : ''}`}>
-      <div className="section-header" onClick={() => toggleSection('audioAndVideo')}>
-        <h3><MdSettings /> {t('audioAndVideo')}</h3>
-        {expandedSection === 'audioAndVideo' ? <MdExpandLess /> : <MdExpandMore />}
-      </div>
-      {expandedSection === 'audioAndVideo' && (
-        <div className="section-content">
-          <div className="setting-item">
-            <label htmlFor="audio-device-select">{t('audioInputDevice')}:</label>
-            <select
-              id="audio-device-select"
-              value={selectedAudioDevice}
-              onChange={(e) => setSelectedAudioDevice(e.target.value)}
-            >
-              {audioDevices.map((device) => (
-                <option key={device.deviceId} value={device.deviceId}>
-                  {device.label || `Microphone ${device.deviceId}`}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="setting-item">
-            <button className="test-audio" onClick={handleTestMicrophone}>
-              {isTestingMic ? t('stopMicrophoneTest') : t('testMicrophone')}
-            </button>
-            <canvas ref={audioVisualizerRef} className="audio-visualizer"></canvas>
-          </div>
-          <div className="setting-item">
-            <label htmlFor="video-device-select">{t('videoInputDevice')}:</label>
-            <select
-              id="video-device-select"
-              value={selectedVideoDevice}
-              onChange={(e) => setSelectedVideoDevice(e.target.value)}
-            >
-              {videoDevices.map((device) => (
-                <option key={device.deviceId} value={device.deviceId}>
-                  {device.label || `Camera ${device.deviceId}`}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="setting-item">
-            <button className="test-video" onClick={handleTestCamera}>
-              {isTestingVideo ? t('stopCameraTest') : t('testCamera')}
-            </button>
-            <video ref={videoPreviewRef} className="video-preview" autoPlay playsInline muted></video>
-          </div>
-        </div>
-      )}
-    </div>
-
-    <div className={`settings-section ${expandedSection === 'voicemail' ? 'expanded' : ''}`}>
-      <div className="section-header" onClick={() => toggleSection('voicemail')}>
-        <h3><MdVoicemail /> {t('voicemail')}</h3>
-        {expandedSection === 'voicemail' ? <MdExpandLess /> : <MdExpandMore />}
-      </div>
-      {expandedSection === 'voicemail' && (
-        <div className="section-content">
-          <div className="setting-item">
-            <label>
-              <input
-                type="checkbox"
-                checked={voicemailPreference}
-                onChange={handleVoicemailPreferenceChange}
-              />
-              {t('useCustomVoicemail')}
-            </label>
-          </div>
-          {voicemailPreference && (
-            <div className="setting-item">
-              <button onClick={isRecording ? stopRecording : startRecording}>
-                {isRecording ? t('stopRecording') : t('startRecording')}
-              </button>
-              {customVoicemail && (
-                <div>
-                  <audio src={customVoicemail} controls />
-                  <button onClick={handleDeleteVoicemail}>{t('deleteVoicemail')}</button>
+                <div className={`settings-section ${expandedSection === 'appearance' ? 'expanded' : ''}`}>
+                  <div className="section-header" onClick={() => toggleSection('appearance')}>
+                    <h3><MdBrush /> {t('appearance')}</h3>
+                    {expandedSection === 'appearance' ? <MdExpandLess /> : <MdExpandMore />}
+                  </div>
+                  {expandedSection === 'appearance' && (
+                    <div className="section-content">
+                      <div className="setting-item">
+                        <label htmlFor="theme-select">{t('theme')}:</label>
+                        <select
+                          id="theme-select"
+                          value={theme}
+                          onChange={(e) => handleThemeChange(e.target.value)}
+                        >
+                          <option value="light">{t('light')}</option>
+                          <option value="dark">{t('dark')}</option>
+                        </select>
+                      </div>
+                      <div className="setting-item">
+                        <label htmlFor="language-select">{t('language')}:</label>
+                        <select value={language} onChange={(e) => handleLanguageChange(e.target.value)}>
+                          <option value="en">English</option>
+                          <option value="fr">Français</option>
+                          <option value="es">Español</option>
+                          <option value="de">Deutsch</option>
+                          <option value="it">Italiano</option>
+                          <option value="pt">Português</option>
+                          <option value="nl">Nederlands</option>
+                          <option value="ru">Русский</option>
+                          <option value="ja">日本語</option>
+                          <option value="ko">한국어</option>
+                          <option value="ar">العربية</option>
+                          <option value="zh">中文</option>
+                          <option value="uk">Українська</option>
+                          <option value="pl">Polski</option>
+                          <option value="tr">Türkçe</option>
+                          <option value="vi">Tiếng Việt</option>
+                          <option value="ro">Română</option>
+                          <option value="sv">Svenska</option>
+                          <option value="no">Norsk</option>
+                          <option value="fi">Suomi</option>
+                          <option value="el">Ελληνικά</option>
+                          <option value="hu">Magyar</option>
+                          <option value="sr">Српски</option>
+                          <option value="id">Bahasa Indonesia</option>
+                          <option value="ur">اردو</option>
+                          <option value="hr">Hrvatski</option>
+                          <option value="is">Íslenska</option>
+                          <option value="et">Eesti</option>
+                          <option value="lt">Lietuvių</option>
+                          <option value="be">Беларуская</option>
+                          <option value="af">Afrikaans</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
 
-  </div>
-)}
+                <div className={`settings-section ${expandedSection === 'audioAndVideo' ? 'expanded' : ''}`}>
+                  <div className="section-header" onClick={() => toggleSection('audioAndVideo')}>
+                    <h3><MdSettings /> {t('audioAndVideo')}</h3>
+                    {expandedSection === 'audioAndVideo' ? <MdExpandLess /> : <MdExpandMore />}
+                  </div>
+                  {expandedSection === 'audioAndVideo' && (
+                    <div className="section-content">
+                      <div className="setting-item">
+                        <label htmlFor="audio-device-select">{t('audioInputDevice')}:</label>
+                        <select
+                          id="audio-device-select"
+                          value={selectedAudioDevice}
+                          onChange={(e) => setSelectedAudioDevice(e.target.value)}
+                        >
+                          {audioDevices.map((device) => (
+                            <option key={device.deviceId} value={device.deviceId}>
+                              {device.label || `Microphone ${device.deviceId}`}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="setting-item">
+                        <button className="test-audio" onClick={handleTestMicrophone}>
+                          {isTestingMic ? t('stopMicrophoneTest') : t('testMicrophone')}
+                        </button>
+                        <canvas ref={audioVisualizerRef} className="audio-visualizer"></canvas>
+                      </div>
+                      <div className="setting-item">
+                        <label htmlFor="video-device-select">{t('videoInputDevice')}:</label>
+                        <select
+                          id="video-device-select"
+                          value={selectedVideoDevice}
+                          onChange={(e) => setSelectedVideoDevice(e.target.value)}
+                        >
+                          {videoDevices.map((device) => (
+                            <option key={device.deviceId} value={device.deviceId}>
+                              {device.label || `Camera ${device.deviceId}`}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="setting-item">
+                        <button className="test-video" onClick={handleTestCamera}>
+                          {isTestingVideo ? t('stopCameraTest') : t('testCamera')}
+                        </button>
+                        <video ref={videoPreviewRef} className="video-preview" autoPlay playsInline muted></video>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className={`settings-section ${expandedSection === 'voicemail' ? 'expanded' : ''}`}>
+                  <div className="section-header" onClick={() => toggleSection('voicemail')}>
+                    <h3><MdVoicemail /> {t('voicemail')}</h3>
+                    {expandedSection === 'voicemail' ? <MdExpandLess /> : <MdExpandMore />}
+                  </div>
+                  {expandedSection === 'voicemail' && (
+                    <div className="section-content">
+                      <div className="setting-item">
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={voicemailPreference}
+                            onChange={handleVoicemailPreferenceChange}
+                          />
+                          {t('useCustomVoicemail')}
+                        </label>
+                      </div>
+                      {voicemailPreference && (
+                        <div className="setting-item">
+                          <button onClick={isRecording ? stopRecording : startRecording}>
+                            {isRecording ? t('stopRecording') : t('startRecording')}
+                          </button>
+                          {customVoicemail && (
+                            <div>
+                              <audio src={customVoicemail} controls />
+                              <button onClick={handleDeleteVoicemail}>{t('deleteVoicemail')}</button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            )}
           </main>
         </div>)}{userInfo && userInfo.is_admin && (
           <MdSecurity className="admin-icon" title={t('adminUser')} />

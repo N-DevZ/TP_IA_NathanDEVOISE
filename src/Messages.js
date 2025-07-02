@@ -4,36 +4,14 @@ import './Messages.css';
 
 function Messages({ username, token, t }) {
   const [contacts, setContacts] = useState([]);
-  const [currentUserId, setCurrentUserId] = useState(null); // 👈 Ajout
+  const [currentUserId, setCurrentUserId] = useState(null);
   const [selectedContact, setSelectedContact] = useState(null);
   const [thread, setThread] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [error, setError] = useState(null);
+  const [isTyping, setIsTyping] = useState(false); // État de "taper"
+  const [typingTimeout, setTypingTimeout] = useState(null); // Gère le délai d'inactivité
   const messagesEndRef = useRef(null);
-
-  console.log('Component rendered. Username:', username, 'Token:', token);
-
-  useEffect(() => {
-    console.log('Fetching contacts...');
-    fetchContacts();
-  }, [username, token]);
-
-  useEffect(() => {
-    if (selectedContact) {
-      console.log('Selected contact changed:', selectedContact);
-      fetchThread(selectedContact.id);
-    }
-  }, [selectedContact]);
-
-  useEffect(() => {
-    console.log('Thread updated:', thread);
-    scrollToBottom();
-  }, [thread]);
-
-  const scrollToBottom = () => {
-    console.log('Scrolling to bottom');
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
 
   const fetchContacts = async () => {
     try {
@@ -42,20 +20,14 @@ function Messages({ username, token, t }) {
       });
       if (!res.ok) throw new Error('Failed to fetch contacts');
       const data = await res.json();
-      console.log('Contacts fetched:', data);
-
       const me = data.find((u) => u.extension === username);
-      setCurrentUserId(me?.id); // 👈 Mémorise l’ID de l’utilisateur actuel
-
-      console.log('Fetching last messages for contacts...');
+      setCurrentUserId(me?.id);
       const contactsWithLastMessage = await Promise.all(
         data.map(async (contact) => {
           const lastMessage = await fetchLastMessage(contact.id, me?.id);
           return { ...contact, lastMessage };
         })
       );
-
-      console.log('Contacts with last messages:', contactsWithLastMessage);
       setContacts(contactsWithLastMessage);
     } catch (error) {
       console.error('Error fetching contacts:', error);
@@ -67,14 +39,11 @@ function Messages({ username, token, t }) {
     if (!myId) return '';
     try {
       const url = `http://192.168.1.95:3000/messages/last/${myId}/${contactId}`;
-      console.log(`Fetching from URL: ${url}`);
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      console.log(`Response status: ${res.status}`);
       if (!res.ok) throw new Error('Failed to fetch last message');
       const data = await res.json();
-      console.log(`Last message data for contact ${contactId}:`, data);
       return data ? data.content : '';
     } catch (error) {
       console.error(`Error fetching last message for contact ${contactId}:`, error);
@@ -84,15 +53,12 @@ function Messages({ username, token, t }) {
 
   const fetchThread = async (contactId) => {
     if (!currentUserId) return;
-    console.log('Fetching thread for contact:', contactId);
     try {
       const res = await fetch(`http://192.168.1.95:3000/messages/${currentUserId}/${contactId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      console.log('Thread fetch response:', res);
       if (!res.ok) throw new Error('Failed to fetch thread');
       const data = await res.json();
-      console.log('Thread data:', data);
       setThread(data);
     } catch (error) {
       console.error('Error fetching thread:', error);
@@ -101,16 +67,15 @@ function Messages({ username, token, t }) {
   };
 
   const handleContactClick = (contact) => {
-    console.log('Contact clicked:', contact);
     setSelectedContact(contact);
     fetchThread(contact.id);
   };
 
   const handleSendMessage = async () => {
-    console.log('Sending message:', newMessage);
     if (!newMessage.trim() || !selectedContact) return;
 
     try {
+      // Envoi du message
       const res = await fetch('http://192.168.1.95:3000/messages', {
         method: 'POST',
         headers: {
@@ -129,74 +94,125 @@ function Messages({ username, token, t }) {
         throw new Error(errorData.error || 'Failed to send message');
       }
 
-      console.log('Message sent successfully');
       setNewMessage('');
-      fetchThread(selectedContact.id);
-      fetchContacts(); // Refresh contacts to update last messages
+      fetchThread(selectedContact.id); // Refait la conversation après l'envoi
+      fetchContacts(); // Rafraîchit les contacts
+      setIsTyping(false); // Désactive "taper" après l'envoi du message
     } catch (error) {
       console.error('Error sending message:', error);
       setError(error.message || 'Failed to send message');
     }
   };
 
-  
-return (
-  <>
-    <h2 className="messages-title">{t('Messages')}</h2>
-    <div className="messages-container">
-      <div className="contacts-list">
-        <h2>{t('Contacts')}</h2>
-        {contacts.map((contact) => (
-          <div
-            key={contact.id}
-            className={`contact-item ${selectedContact?.id === contact.id ? 'selected' : ''}`}
-            onClick={() => handleContactClick(contact)}
-          >
-            <strong>
-              {contact.name}
-            </strong>
-            <p>{contact.lastMessage || t('No messages yet')}</p>
-          </div>
-        ))}
-      </div>
-      <div className="messages-area">
-        {selectedContact ? (
-          <>
-            <h3>
-              {t('Conversation with')} {selectedContact.name}
-            </h3>
-            <div className="messages-list">
-              {thread.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`message ${msg.sender_id === currentUserId ? 'sent' : 'received'}`}
-                >
-                  <p>{msg.content}</p>
-                  <small>{new Date(msg.timestamp).toLocaleString()}</small>
-                </div>
-              ))}
-              <div ref={messagesEndRef} />
+  const handleInputChange = (e) => {
+    setNewMessage(e.target.value);
+
+    // Active l'indicateur "taper"
+    setIsTyping(true);
+
+    // Si un délai d'inactivité existe, on l'efface
+    if (typingTimeout) clearTimeout(typingTimeout);
+
+    // Redonne un délai de 2 secondes pour éteindre "taper" après la fin de la frappe
+    const timeout = setTimeout(() => {
+      setIsTyping(false); // L'indicateur "taper" s'éteint après 2 secondes
+    }, 2000);
+
+    setTypingTimeout(timeout);
+  };
+
+  useEffect(() => {
+    fetchContacts();
+  }, [username, token]);
+
+  useEffect(() => {
+    if (selectedContact) {
+      fetchThread(selectedContact.id);
+
+      const interval = setInterval(() => {
+        fetchThread(selectedContact.id); // Rafraîchit la conversation
+      }, 3000);
+
+      return () => clearInterval(interval);
+    }
+  }, [selectedContact]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [thread]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  return (
+    <>
+      <h2 className="messages-title">{t('Messages')}</h2>
+      <div className="messages-container">
+        <div className="contacts-list">
+          <h2>{t('Contacts')}</h2>
+          {contacts.map((contact) => (
+            <div
+              key={contact.id}
+              className={`contact-item ${selectedContact?.id === contact.id ? 'selected' : ''}`}
+              onClick={() => handleContactClick(contact)}
+            >
+              <strong>{contact.name}</strong>
+              <p>
+                {contact.lastMessage && contact.lastMessage.length > 50
+                  ? `${contact.lastMessage.substring(0, 50)}...`
+                  : contact.lastMessage || t('No messages yet')}
+              </p>
             </div>
-            <div className="message-input">
-              <input
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder={t('Type your message...')}
-                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-              />
-              <button onClick={handleSendMessage}>
-                <MdSend />
-              </button>
-            </div>
-          </>
-        ) : (
-          <p>{t('Select a contact to start messaging')}</p>
-        )}
+          ))}
+        </div>
+        <div className="messages-area">
+          {selectedContact ? (
+            <>
+              <h3>
+                {t('Conversation with')} {selectedContact.name}
+              </h3>
+              <div className="messages-list">
+                {thread.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={`message ${msg.sender_id === currentUserId ? 'sent' : 'received'}`}
+                  >
+                    <p>{msg.content}</p>
+                    <small>{new Date(msg.timestamp).toLocaleString()}</small>
+                  </div>
+                ))}
+                {isTyping && (
+                  <div className="typing-indicator">
+                    <span>{t('is typing...')}</span>
+                    <div className="typing-animation">
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+              <div className="message-input">
+                <input
+                  value={newMessage}
+                  onChange={handleInputChange}
+                  placeholder={t('Type your message...')}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                />
+                <button onClick={handleSendMessage}>
+                  <MdSend />
+                </button>
+              </div>
+            </>
+          ) : (
+            <p>{t('Select a contact to start a conversation')}</p>
+          )}
+        </div>
       </div>
-      {error && <div className="error-message">{error}</div>}
-    </div>
-  </>
-);
+    </>
+  );
 }
 
 export default Messages;
