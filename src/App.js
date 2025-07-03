@@ -540,6 +540,9 @@ function App() {
       setConnectionFailed(false);
       updateUserStatus('online');
       await fetchUserInfo(); // Appel après l'enregistrement
+       if (!token) {
+      await generateToken();
+    }
 
       // Récupération du nom du contact après l'enregistrement réussi
       try {
@@ -590,6 +593,8 @@ function App() {
         setCallStatus('Incoming call');
         const callerName = newSession.remote_identity.display_name || newSession.remote_identity.uri.user;
         setParticipants([{ name: callerName, extension: newSession.remote_identity.uri.user }]);
+            setCallTo(newSession.remote_identity.uri.user);
+
         setTimeout(async () => {
           if (incomingCall) {
             // L'appel n'a pas été répondu, on bascule sur la messagerie
@@ -606,6 +611,8 @@ function App() {
       } else {
         setSession(newSession);
         setCallStatus('Outgoing call');
+            setCallTo(newSession.remote_identity.uri.user);
+
       }
 
       newSession.on('accepted', () => {
@@ -810,27 +817,129 @@ function App() {
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
-  const playBeepSound = useCallback(() => {
-    console.log('Playing integrated beep sound');
+  
 
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = ctx.createOscillator();
-    const gainNode = ctx.createGain();
+  const stopVoicemailRecording = useCallback(() => {
+  if (voicemailRecorderRef.current && voicemailRecorderRef.current.state === 'recording') {
+    console.log('Stopping voicemail recording...');
+    voicemailRecorderRef.current.stop();
+    setIsRecordingVoicemail(false);
+  } else {
+    console.log('No voicemail recording in progress to stop');
+  }
+}, []);
 
-    oscillator.type = 'sine';               // Type de son (sinusoïdal)
-    oscillator.frequency.setValueAtTime(1000, ctx.currentTime); // 1000 Hz = bip classique
-    gainNode.gain.setValueAtTime(1, ctx.currentTime);
+// Fonction pour envoyer la voicemail au serveur
+const sendVoicemailToServer = useCallback(async (audioBlob) => {
+  if (!token || !callTo) {
+    console.error('Token or callTo is missing');
+    return;
+  }
 
-    oscillator.connect(gainNode);
-    gainNode.connect(ctx.destination);
+  // Modifier l'extension en mp3
+  const formData = new FormData();
+  formData.append('voicemail', audioBlob, 'voicemail.mp3');  // Changer l'extension ici en mp3
+  formData.append('extension', callTo);
 
-    oscillator.start();
-    oscillator.stop(ctx.currentTime + 0.4); // Durée du bip : 400 ms
+  try {
+    const response = await fetch('http://192.168.1.95:3000/voicemails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData
+    });
 
-    oscillator.onended = () => {
-      ctx.close();
-    };
-  }, []);
+    if (!response.ok) {
+      const errorText = await response.text(); // Pour afficher la réponse de l'API
+      throw new Error(`Failed to send voicemail. Status: ${response.status}, ${errorText}`);
+    }
+
+    console.log('Voicemail sent successfully');
+  } catch (error) {
+    console.error('Error sending voicemail:', error);
+    alert('Error while sending voicemail. Please try again.');
+  }
+}, [token, callTo]);
+
+
+
+
+// Fonction pour démarrer l'enregistrement du message vocal
+const startVoicemailRecording = useCallback(() => {
+  if (!token || !callTo) {
+    console.error('Token or callTo is missing');
+    return;
+  }
+
+  // Assurer que l'enregistrement n'est pas déjà en cours
+  if (isRecordingVoicemail) {
+    console.log('Recording already in progress');
+    return;
+  }
+
+  navigator.mediaDevices.getUserMedia({ audio: true })
+    .then(stream => {
+      const mediaRecorder = new MediaRecorder(stream);
+      voicemailRecorderRef.current = mediaRecorder;
+      voicemailChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        voicemailChunksRef.current.push(event.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(voicemailChunksRef.current, { type: 'audio/wav' });
+        sendVoicemailToServer(audioBlob);
+        setIsRecordingVoicemail(false);  // Réinitialiser l'état de l'enregistrement
+      };
+
+      mediaRecorder.start();
+      setIsRecordingVoicemail(true); // Marquer l'enregistrement comme en cours
+      console.log('Voicemail recording started');
+    })
+    .catch(error => {
+      console.error('Error starting voicemail recording:', error);
+    });
+}, [token, callTo, sendVoicemailToServer, isRecordingVoicemail]);
+
+
+  
+const playBeepSound = useCallback(() => {
+  console.log('Playing integrated beep sound');
+
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const oscillator = ctx.createOscillator();
+  const gainNode = ctx.createGain();
+
+  oscillator.type = 'sine';
+  oscillator.frequency.setValueAtTime(1000, ctx.currentTime); // 1000 Hz
+  gainNode.gain.setValueAtTime(1, ctx.currentTime);
+
+  oscillator.connect(gainNode);
+  gainNode.connect(ctx.destination);
+
+  oscillator.start();
+  oscillator.stop(ctx.currentTime + 0.4); // 400ms beep
+
+  oscillator.onended = () => {
+    ctx.close();
+
+    // Démarrer l'enregistrement uniquement si on n'est pas déjà en train d'enregistrer
+    if (!isRecordingVoicemail) {
+      console.log('Starting voicemail recording...');
+      startVoicemailRecording();
+    }
+  };
+}, [startVoicemailRecording, isRecordingVoicemail]);
+
+useEffect(() => {
+  return () => {
+    if (voicemailTimer) {
+      clearTimeout(voicemailTimer);
+    }
+  };
+}, [voicemailTimer]);
 
   const playVoicemailGreeting = useCallback(() => {
     console.log('Playing voicemail greeting audio file');
@@ -1008,31 +1117,33 @@ function App() {
         setVoicemailTimer(null);
       });
 
-       newSession.on('failed', async (e) => {
-    console.log('Call failed:', e.cause);
-    clearTimeout(voicemailTimer);
-    setVoicemailTimer(null);
-    stopRingbackTone();
-    setCallStatus(`Call failed: ${e.cause}`);
+      newSession.on('failed', async (e) => {
+        console.log('Call failed:', e.cause);
+        clearTimeout(voicemailTimer);
+        setVoicemailTimer(null);
+        stopRingbackTone();
+        setCallStatus(`Call failed: ${e.cause}`);
 
-    if (e.cause === 'Unavailable' || e.cause === 'No Answer') {
-      const { useCustomVoicemail, hasCustomVoicemail } = await checkVoicemailPreference(callTo);
-      if (useCustomVoicemail && hasCustomVoicemail) {
-        await playVoicemail(callTo, true);
-      } else {
-        await playVoicemailGreeting();
-      }
-      
-      // Commencer l'enregistrement après le bip
-      setTimeout(() => {
-        startVoicemailRecording();
-      }, 1000); // Attendre 1 seconde après le bip
-    }
+        if (e.cause === 'Unavailable' || e.cause === 'No Answer') {
+          const { useCustomVoicemail, hasCustomVoicemail } = await checkVoicemailPreference(callTo);
+          if (useCustomVoicemail && hasCustomVoicemail) {
+            await playVoicemail(callTo, true);
+          } else {
+            await playVoicemailGreeting();
+          }
 
-    setSession(null);
-    setIsVideoEnabled(false);
-    resetMediaStreams();
-  });
+          // Commence l'enregistrement après le bip
+          setTimeout(() => {
+            playBeepSound();  // Jouer le bip sonore et commencer l'enregistrement
+          }, 1000); // Attendre 1 seconde après le bip sonore
+        }
+
+        setSession(null);
+        setIsVideoEnabled(false);
+        resetMediaStreams();
+      });
+
+
 
       newSession.on('ended', () => {
         console.log('Call ended');
@@ -1072,69 +1183,9 @@ function App() {
   useEffect(() => {
     callProgressRef.current = callProgress;
   }, [callProgress]);
-const startVoicemailRecording = useCallback(() => {
-  setIsRecordingVoicemail(true);
-  navigator.mediaDevices.getUserMedia({ audio: true })
-    .then(stream => {
-      voicemailRecorderRef.current = new MediaRecorder(stream);
-      voicemailRecorderRef.current.ondataavailable = (event) => {
-        voicemailChunksRef.current.push(event.data);
-      };
-      voicemailRecorderRef.current.onstop = () => {
-        const audioBlob = new Blob(voicemailChunksRef.current, { type: 'audio/wav' });
-        sendVoicemailToServer(audioBlob);
-        voicemailChunksRef.current = [];
-      };
-      voicemailRecorderRef.current.start();
 
-      // Arrêter l'enregistrement après 60 secondes (ou la durée que vous souhaitez)
-      setTimeout(() => {
-        if (voicemailRecorderRef.current && voicemailRecorderRef.current.state === 'recording') {
-          voicemailRecorderRef.current.stop();
-          setIsRecordingVoicemail(false);
-        }
-      }, 60000);
-    });
-}, []);
 
-const stopVoicemailRecording = useCallback(() => {
-  if (voicemailRecorderRef.current && voicemailRecorderRef.current.state === 'recording') {
-    voicemailRecorderRef.current.stop();
-    setIsRecordingVoicemail(false);
-  }
-}, []);
 
-const sendVoicemailToServer = useCallback(async (audioBlob) => {
-  console.log('Sending voicemail to server...');
-  
-  if (!token || !callTo) {
-    console.error('Token or callTo is missing');
-    return;
-  }
-
-  const formData = new FormData();
-  formData.append('voicemail', audioBlob, 'voicemail.wav');
-  formData.append('sender', username);
-  formData.append('receiver', callTo);
-
-  try {
-    const response = await fetch('http://192.168.1.95:3000/voicemails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      body: formData
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to send voicemail');
-    }
-
-    console.log('Voicemail sent successfully');
-  } catch (error) {
-    console.error('Error sending voicemail:', error);
-  }
-}, [token, callTo, username]);
 
   const handleEdit = (field) => {
     setIsEditing(true);
@@ -1522,6 +1573,7 @@ const sendVoicemailToServer = useCallback(async (audioBlob) => {
 
     // Vérifier si un enregistrement de message vocal est en cours
     if (voicemailRecorderRef.current && voicemailRecorderRef.current.state === 'recording') {
+      console.log('Stopping voicemail recording...');
       voicemailRecorderRef.current.stop();
       voicemailRecorderRef.current.ondataavailable = async (event) => {
         console.log('Audio data available:', event.data);
@@ -1591,9 +1643,10 @@ const sendVoicemailToServer = useCallback(async (audioBlob) => {
       const nowInFrance = moment().tz('Europe/Paris').add(2, 'hours');
       const utcNow = nowInFrance.clone().tz('UTC');
 
-      const start_time = session.start_time
+      const start_time = session?.start_time
         ? moment(session.start_time).tz('Europe/Paris').add(2, 'hours').tz('UTC')
         : utcNow;
+
       const connect_time = session.connect_time
         ? moment(session.connect_time).tz('Europe/Paris').add(2, 'hours').tz('UTC')
         : utcNow;
@@ -1641,7 +1694,7 @@ const sendVoicemailToServer = useCallback(async (audioBlob) => {
   await fetchCallHistory(); // Mettre à jour l'historique après l'appel
   setIsCallInProgress(false);
 
-}, [session, isVoicemail, t, token, resetMediaStreams, stopRingbackTone, fetchCallHistory, sendVoicemailToServer]);
+}, [session, isVoicemail, t, token, resetMediaStreams, stopRingbackTone, fetchCallHistory]);
 
   const handlePhotoChange = useCallback(async (e) => {
     const file = e.target.files[0];
@@ -1903,10 +1956,10 @@ const sendVoicemailToServer = useCallback(async (audioBlob) => {
                       )}
                     </>
                   )} {isRecordingVoicemail && (
-    <div className="recording-indicator">
-      Enregistrement du message vocal en cours...
-    </div>
-  )}
+                    <div className="recording-indicator">
+                      Enregistrement du message vocal en cours...
+                    </div>
+                  )}
                 </div>
 
                 <div className="video-container">
